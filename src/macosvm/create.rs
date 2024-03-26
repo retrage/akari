@@ -130,7 +130,36 @@ unsafe fn create_serial_port_config() -> Id<VZVirtioConsoleDeviceSerialPortConfi
     serial
 }
 
-pub unsafe fn create_vm(bundle_path: &Path) -> Id<VZVirtualMachineConfiguration> {
+unsafe fn create_directory_share_device_config(
+    path: &Path,
+    tag: &str,
+    readonly: bool,
+) -> Id<VZVirtioFileSystemDeviceConfiguration> {
+    let path = NSString::from_str(path.canonicalize().unwrap().to_str().unwrap());
+    let url = NSURL::fileURLWithPath(&path);
+
+    let tag = NSString::from_str(tag);
+
+    let shared_directory =
+        VZSharedDirectory::initWithURL_readOnly(VZSharedDirectory::alloc(), &url, readonly);
+    let single_directory_share = VZSingleDirectoryShare::initWithDirectory(
+        VZSingleDirectoryShare::alloc(),
+        &shared_directory,
+    );
+
+    let sharing_config = VZVirtioFileSystemDeviceConfiguration::initWithTag(
+        VZVirtioFileSystemDeviceConfiguration::alloc(),
+        &VZVirtioFileSystemDeviceConfiguration::macOSGuestAutomountTag(),
+    );
+    sharing_config.setShare(Some(&single_directory_share));
+
+    sharing_config
+}
+
+pub unsafe fn create_vm(
+    bundle_path: &Path,
+    container_id: &str,
+) -> Id<VZVirtualMachineConfiguration> {
     let macos_vm_config = load_macos_vm_config(&bundle_path.join("vm.json"));
     let mac_platform = create_mac_platform_config(&macos_vm_config);
     let disk = macos_vm_config
@@ -141,6 +170,8 @@ pub unsafe fn create_vm(bundle_path: &Path) -> Id<VZVirtualMachineConfiguration>
     let graphics_device = create_graphics_device_config();
     let block_device = create_block_device_config(&disk.file);
     let serial_port = create_serial_port_config();
+    let directory_share =
+        create_directory_share_device_config(&bundle_path.join("shared"), container_id, false);
 
     let boot_loader = VZMacOSBootLoader::new();
 
@@ -152,6 +183,7 @@ pub unsafe fn create_vm(bundle_path: &Path) -> Id<VZVirtualMachineConfiguration>
     config.setGraphicsDevices(&NSArray::from_slice(&[graphics_device.as_super()]));
     config.setStorageDevices(&NSArray::from_slice(&[block_device.as_super()]));
     config.setSerialPorts(&NSArray::from_slice(&[serial_port.as_super()]));
+    config.setDirectorySharingDevices(&NSArray::from_slice(&[directory_share.as_super()]));
 
     config
 }

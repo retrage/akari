@@ -8,7 +8,7 @@ use liboci_cli::Start;
 pub fn start(args: Start, root_path: PathBuf) -> std::io::Result<()> {
     println!("Start: {}", args.container_id);
 
-    let config = unsafe { create::create_vm(&root_path) };
+    let config = unsafe { create::create_vm(&root_path, &args.container_id) };
 
     unsafe {
         create::start_vm(config);
