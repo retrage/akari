@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use liboci_cli::Kill;
 
-pub fn kill(args: Kill, root_path: PathBuf) -> std::io::Result<()> {
+pub fn kill(args: Kill, _root_path: PathBuf) -> std::io::Result<()> {
     println!("Kill: {}", args.container_id);
     Ok(())
 }

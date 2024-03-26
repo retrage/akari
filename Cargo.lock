@@ -3,6 +3,20 @@
 version = 3
 
 [[package]]
+name = "akari"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "block2",
+ "clap",
+ "icrate",
+ "liboci-cli",
+ "objc2",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "anstream"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -136,20 +150,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2fb8daab7180d25db1086b0fb73a0de935f3cb55d56d60e946ed84bec2a3ffd"
 dependencies = [
  "clap",
-]
-
-[[package]]
-name = "macos-container"
-version = "0.1.0"
-dependencies = [
- "base64",
- "block2",
- "clap",
- "icrate",
- "liboci-cli",
- "objc2",
- "serde",
- "serde_json",
 ]
 
 [[package]]

@@ -52,7 +52,7 @@ impl ContainerState {
     }
 }
 
-pub fn state(args: State, root_path: PathBuf) -> std::io::Result<()> {
+pub fn state(args: State, _root_path: PathBuf) -> std::io::Result<()> {
     // TODO: Find the container with args.id and print its state
     println!("state: {}", args.container_id);
     Ok(())

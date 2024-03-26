@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Create a new VM using macosvm
+//! Create a new VM
 
 use std::{
-    os::macos,
     path::PathBuf,
     sync::{Arc, RwLock},
     thread::sleep,
@@ -14,11 +13,7 @@ use base64::prelude::*;
 use block2::StackBlock;
 use icrate::{
     queue::{Queue, QueueAttribute},
-    AppKit::{NSBackingStoreType, NSWindow, NSWindowStyleMask},
-    Foundation::{
-        MainThreadMarker, NSArray, NSData, NSError, NSFileHandle, NSPoint, NSRect, NSSize,
-        NSString, NSURL,
-    },
+    Foundation::{NSArray, NSData, NSError, NSFileHandle, NSString, NSURL},
     Virtualization::*,
 };
 use objc2::{ffi::NSInteger, msg_send_id, rc::Id, ClassType};
@@ -162,11 +157,9 @@ pub unsafe fn create_vm(bundle_path: &PathBuf) -> Id<VZVirtualMachineConfigurati
 }
 
 pub unsafe fn start_vm(config: Id<VZVirtualMachineConfiguration>) {
-    let mtm = MainThreadMarker::new().unwrap();
-
     match config.validateWithError() {
         Ok(_) => {
-            let queue = Queue::create("com.example.myqueue", QueueAttribute::Serial);
+            let queue = Queue::create("com.akari.vm.queue", QueueAttribute::Serial);
             let vm: Arc<RwLock<Id<VZVirtualMachine>>> = Arc::new(RwLock::new(
                 msg_send_id![VZVirtualMachine::alloc(), initWithConfiguration: config.as_ref(), queue: queue.ptr],
             ));
@@ -184,29 +177,7 @@ pub unsafe fn start_vm(config: Id<VZVirtualMachineConfiguration>) {
             let dispatch_block = dispatch_block.clone();
             queue.exec_block_async(&dispatch_block);
 
-            // let view = VZVirtualMachineView::new(mtm);
-            // view.setCapturesSystemKeys(true);
-            // // view.setVirtualMachine(Some(vm.read().unwrap().as_ref()));
-            // let rect = NSRect::new(NSPoint::new(10.0, 10.0), NSSize::new(1024.0, 768.0));
-            // let style = NSWindowStyleMask(
-            //     NSWindowStyleMask::Titled.0
-            //         | NSWindowStyleMask::Closable.0
-            //         | NSWindowStyleMask::Resizable.0
-            //         | NSWindowStyleMask::Miniaturizable.0,
-            // );
-            // let window = NSWindow::initWithContentRect_styleMask_backing_defer(
-            //     mtm.alloc(),
-            //     rect,
-            //     style,
-            //     NSBackingStoreType::NSBackingStoreBuffered,
-            //     false,
-            // );
-            // window.setOpaque(false);
-            // window.setContentView(Some(view.as_super()));
-            // window.setInitialFirstResponder(Some(view.as_super()));
-            // window.setTitle(&NSString::from_str("macOS VM"));
-            // window.makeKeyAndOrderFront(Some(view.as_super()));
-            sleep(Duration::from_secs(3600));
+            sleep(Duration::from_secs(3600)); // FIXME: wait for a signal to stop
         }
         Err(e) => {
             println!("error: {:?}", e);
