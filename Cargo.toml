@@ -1,0 +1,24 @@
+[package]
+name = "macos-container"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "4.4.8", features = ["derive"] }
+liboci-cli = "0.3.2"
+serde = { version = "1.0.192", features = ["derive"] }
+serde_json = "1.0.108"
+base64 = "0.22.0"
+
+icrate = { path = "../objc2/crates/icrate", features = [
+    "AppKit",
+    "AppKit_all",
+    "Foundation",
+    "Foundation_all",
+    "Virtualization",
+    "Virtualization_all",
+] }
+objc2 = { path = "../objc2/crates/objc2" }
+block2 = { path = "../objc2/crates/block2" }
