@@ -3,7 +3,7 @@
 //! Create a new VM
 
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, RwLock},
     thread::sleep,
     time::Duration,
@@ -57,7 +57,7 @@ struct MacosVmConfig {
     audio: bool,
 }
 
-fn load_macos_vm_config(path: &PathBuf) -> MacosVmConfig {
+fn load_macos_vm_config(path: &Path) -> MacosVmConfig {
     let json_string = std::fs::read_to_string(path).unwrap();
     from_str(&json_string).unwrap()
 }
@@ -109,7 +109,7 @@ unsafe fn create_graphics_device_config() -> Id<VZMacGraphicsDeviceConfiguration
     graphics
 }
 
-unsafe fn create_block_device_config(path: &PathBuf) -> Id<VZVirtioBlockDeviceConfiguration> {
+unsafe fn create_block_device_config(path: &Path) -> Id<VZVirtioBlockDeviceConfiguration> {
     let path = NSString::from_str(path.canonicalize().unwrap().to_str().unwrap());
     let url = NSURL::fileURLWithPath(&path);
 
@@ -130,7 +130,7 @@ unsafe fn create_serial_port_config() -> Id<VZVirtioConsoleDeviceSerialPortConfi
     serial
 }
 
-pub unsafe fn create_vm(bundle_path: &PathBuf) -> Id<VZVirtualMachineConfiguration> {
+pub unsafe fn create_vm(bundle_path: &Path) -> Id<VZVirtualMachineConfiguration> {
     let macos_vm_config = load_macos_vm_config(&bundle_path.join("vm.json"));
     let mac_platform = create_mac_platform_config(&macos_vm_config);
     let disk = macos_vm_config
