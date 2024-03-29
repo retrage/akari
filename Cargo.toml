@@ -8,7 +8,7 @@ base64 = "0.22.0"
 clap = { version = "4.4.8", features = ["derive"] }
 liboci-cli = "0.3.2"
 serde = { version = "1.0.192", features = ["derive"] }
-serde_json = "1.0.108"
+serde_json = "1.0.109"
 
 icrate = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization", features = [
     "AppKit",
