@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use crate::macosvm::create;
+use crate::vmm::create;
 use liboci_cli::Start;
 
 pub fn start(args: Start, root_path: PathBuf) -> std::io::Result<()> {

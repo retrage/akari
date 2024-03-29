@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! # Inkya
-//! Inkya is a low-level container runtime for UEFI environment.
-
 mod commands;
-mod macosvm;
+mod vmm;
 
 use clap::Parser;
 
