@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2024 Akira Moroo
+
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
