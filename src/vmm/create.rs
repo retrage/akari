@@ -4,19 +4,21 @@
 
 use std::{
     path::{Path, PathBuf},
-    sync::{Arc, RwLock},
+    rc::Rc,
+    sync::RwLock,
     thread::sleep,
     time::Duration,
 };
 
-use base64::prelude::*;
 use block2::StackBlock;
 use icrate::{
     queue::{Queue, QueueAttribute},
     Foundation::{NSArray, NSData, NSError, NSFileHandle, NSString, NSURL},
     Virtualization::*,
 };
-use objc2::{ffi::NSInteger, msg_send_id, rc::Id, ClassType};
+use objc2::{rc::Id, ClassType};
+
+use base64::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 
@@ -81,13 +83,14 @@ unsafe fn create_mac_platform_config(vm_config: &MacosVmConfig) -> Id<VZMacPlatf
     let aux_path = NSString::from_str(aux.file.canonicalize().unwrap().to_str().unwrap());
     let aux_url = NSURL::fileURLWithPath(&aux_path);
 
-    let aux_storage: Id<VZMacAuxiliaryStorage> =
-        msg_send_id![VZMacAuxiliaryStorage::alloc(), initWithURL: aux_url.as_ref()];
+    let aux_storage = VZMacAuxiliaryStorage::initWithURL(VZMacAuxiliaryStorage::alloc(), &aux_url);
     mac_platform.setAuxiliaryStorage(Some(&aux_storage));
 
     let hw_model_data = NSData::from_vec(hw_model_data);
 
-    let hw_model: Id<VZMacHardwareModel> = msg_send_id![VZMacHardwareModel::alloc(), initWithDataRepresentation: hw_model_data.as_ref()];
+    let hw_model =
+        VZMacHardwareModel::initWithDataRepresentation(VZMacHardwareModel::alloc(), &hw_model_data)
+            .unwrap();
     if !hw_model.isSupported() {
         panic!("Hardware model is not supported");
     }
@@ -95,14 +98,24 @@ unsafe fn create_mac_platform_config(vm_config: &MacosVmConfig) -> Id<VZMacPlatf
 
     let machine_id_data = NSData::from_vec(machine_id_data);
 
-    let machine_id: Id<VZMacMachineIdentifier> = msg_send_id![VZMacMachineIdentifier::alloc(), initWithDataRepresentation: machine_id_data.as_ref()];
+    let machine_id = VZMacMachineIdentifier::initWithDataRepresentation(
+        VZMacMachineIdentifier::alloc(),
+        &machine_id_data,
+    )
+    .unwrap();
     mac_platform.setMachineIdentifier(&machine_id);
 
     mac_platform
 }
 
 unsafe fn create_graphics_device_config() -> Id<VZMacGraphicsDeviceConfiguration> {
-    let display: Id<VZMacGraphicsDisplayConfiguration> = msg_send_id![VZMacGraphicsDisplayConfiguration::alloc(), initWithWidthInPixels:1920 as NSInteger, heightInPixels:1200 as NSInteger, pixelsPerInch:80 as NSInteger];
+    let display =
+        VZMacGraphicsDisplayConfiguration::initWithWidthInPixels_heightInPixels_pixelsPerInch(
+            VZMacGraphicsDisplayConfiguration::alloc(),
+            1920,
+            1200,
+            80,
+        );
     let graphics = VZMacGraphicsDeviceConfiguration::new();
     graphics.setDisplays(&NSArray::from_slice(&[display.as_ref()]));
 
@@ -113,16 +126,28 @@ unsafe fn create_block_device_config(path: &Path) -> Id<VZVirtioBlockDeviceConfi
     let path = NSString::from_str(path.canonicalize().unwrap().to_str().unwrap());
     let url = NSURL::fileURLWithPath(&path);
 
-    let block_attachment: Result<Id<VZDiskImageStorageDeviceAttachment>, Id<NSError>> = msg_send_id![VZDiskImageStorageDeviceAttachment::alloc(), initWithURL: url.as_ref(), readOnly: false, error:_];
-    let block_device: Id<VZVirtioBlockDeviceConfiguration> = msg_send_id![VZVirtioBlockDeviceConfiguration::alloc(), initWithAttachment: block_attachment.unwrap().as_ref()];
+    let block_attachment = VZDiskImageStorageDeviceAttachment::initWithURL_readOnly_error(
+        VZDiskImageStorageDeviceAttachment::alloc(),
+        &url,
+        false,
+    )
+    .unwrap();
 
-    block_device
+    VZVirtioBlockDeviceConfiguration::initWithAttachment(
+        VZVirtioBlockDeviceConfiguration::alloc(),
+        &block_attachment,
+    )
 }
 
 unsafe fn create_serial_port_config() -> Id<VZVirtioConsoleDeviceSerialPortConfiguration> {
     let file_handle_in = NSFileHandle::fileHandleWithStandardInput();
     let file_handle_out = NSFileHandle::fileHandleWithStandardOutput();
-    let attachment: Id<VZFileHandleSerialPortAttachment> = msg_send_id![VZFileHandleSerialPortAttachment::alloc(), initWithFileHandleForReading: file_handle_in.as_ref(), fileHandleForWriting: file_handle_out.as_ref()];
+    let attachment =
+        VZFileHandleSerialPortAttachment::initWithFileHandleForReading_fileHandleForWriting(
+            VZFileHandleSerialPortAttachment::alloc(),
+            Some(&file_handle_in),
+            Some(&file_handle_out),
+        );
 
     let serial = VZVirtioConsoleDeviceSerialPortConfiguration::new();
     serial.setAttachment(Some(attachment.as_ref()));
@@ -175,7 +200,7 @@ pub unsafe fn create_vm(
 
     let config = VZVirtualMachineConfiguration::new();
     config.setPlatform(&mac_platform);
-    config.setCPUCount(macos_vm_config.cpus.try_into().unwrap());
+    config.setCPUCount(macos_vm_config.cpus);
     config.setMemorySize(macos_vm_config.ram.try_into().unwrap());
     config.setBootLoader(Some(&boot_loader));
     config.setGraphicsDevices(&NSArray::from_slice(&[graphics_device.as_super()]));
@@ -190,9 +215,12 @@ pub unsafe fn start_vm(config: Id<VZVirtualMachineConfiguration>) {
     match config.validateWithError() {
         Ok(_) => {
             let queue = Queue::create("com.akari.vm.queue", QueueAttribute::Serial);
-            let vm: Arc<RwLock<Id<VZVirtualMachine>>> = Arc::new(RwLock::new(
-                msg_send_id![VZVirtualMachine::alloc(), initWithConfiguration: config.as_ref(), queue: queue.ptr],
-            ));
+            let vm: Rc<RwLock<Id<VZVirtualMachine>>> =
+                Rc::new(RwLock::new(VZVirtualMachine::initWithConfiguration_queue(
+                    VZVirtualMachine::alloc(),
+                    &config,
+                    &queue.ptr,
+                )));
             let dispatch_block = StackBlock::new(move || {
                 let completion_handler = StackBlock::new(|error: *mut NSError| {
                     if !error.is_null() {
