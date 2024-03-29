@@ -20,12 +20,26 @@ pub fn create(args: Create, root_path: PathBuf) -> Result<()> {
 
     assert!(vm_config.shares.is_none());
 
-    let share = vmm::config::MacosVmSharedDirectory {
-        path: args.bundle,
-        automount: true,
-        read_only: false,
-    };
-    vm_config.shares = Some(vec![share]);
+    let spec_path = args.bundle.join("config.json");
+    if !spec_path.exists() {
+        return Err(anyhow::anyhow!("Container configuration does not exist"));
+    }
+    let spec: oci_spec::runtime::Spec = serde_json::from_str(&std::fs::read_to_string(spec_path)?)?;
+
+    if let Some(root) = spec.root() {
+        let rootfs = vmm::config::MacosVmSharedDirectory {
+            path: root.path().clone(),
+            automount: true,
+            read_only: root.readonly().unwrap_or(false),
+        };
+        vm_config.shares = Some(vec![rootfs]);
+    } else {
+        return Err(anyhow::anyhow!("Root path is not specified"));
+    }
+
+    // TODO: spec.process
+    // TODO: spec.hostname
+    // TODO: spec.mounts
 
     // TODO: Support pid_file
     // TODO: Support console_socket
