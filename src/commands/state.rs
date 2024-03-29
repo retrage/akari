@@ -74,8 +74,10 @@ pub fn state(args: State, root_path: PathBuf) -> Result<()> {
     };
 
     let vm_config = vmm::config::load_vm_config(&config_path)?;
-    let share = vm_config
+    let shares = vm_config
         .shares
+        .ok_or(anyhow::anyhow!("Shared directory not found"))?;
+    let share = shares
         .first()
         .ok_or(anyhow::anyhow!("Bundle path not found"))?;
     let bundle = share.path.clone();

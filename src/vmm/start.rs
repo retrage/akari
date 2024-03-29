@@ -10,7 +10,7 @@ use icrate::{
     Foundation::{NSArray, NSData, NSError, NSFileHandle, NSString, NSURL},
     Virtualization::*,
 };
-use objc2::{rc::Id, ClassType};
+use objc2::{msg_send_id, rc::Id, ClassType};
 
 use base64::prelude::*;
 
@@ -170,8 +170,10 @@ pub fn create_vm(
         .ok_or(anyhow::anyhow!("Disk image not found"))?;
     let block_device = unsafe { create_block_device_config(&disk.file)? };
 
-    let shared = macos_vm_config
+    let shares = macos_vm_config
         .shares
+        .ok_or(anyhow::anyhow!("Shared directory not found"))?;
+    let shared = shares
         .first()
         .ok_or(anyhow::anyhow!("Shared directory not found"))?;
     let directory_share =
@@ -207,12 +209,9 @@ pub unsafe fn start_vm(config: Id<VZVirtualMachineConfiguration>) {
     match config.validateWithError() {
         Ok(_) => {
             let queue = Queue::create("com.akari.vm.queue", QueueAttribute::Serial);
-            let vm: Rc<RwLock<Id<VZVirtualMachine>>> =
-                Rc::new(RwLock::new(VZVirtualMachine::initWithConfiguration_queue(
-                    VZVirtualMachine::alloc(),
-                    &config,
-                    &queue.ptr,
-                )));
+            let vm: Rc<RwLock<Id<VZVirtualMachine>>> = Rc::new(RwLock::new(
+                msg_send_id![VZVirtualMachine::alloc(), initWithConfiguration: config.as_ref(), queue: queue.ptr],
+            ));
             let dispatch_block = StackBlock::new(move || {
                 let completion_handler = StackBlock::new(|error: *mut NSError| {
                     if !error.is_null() {

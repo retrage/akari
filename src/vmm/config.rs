@@ -47,7 +47,7 @@ pub struct MacosVmConfig {
     pub ram: usize,
     pub storage: Vec<MacosVmStorage>,
     pub networks: Vec<MacosVmNetwork>,
-    pub shares: Vec<MacosVmSharedDirectory>,
+    pub shares: Option<Vec<MacosVmSharedDirectory>>,
     pub displays: Vec<MacosVmDisplay>,
     pub audio: bool,
 }
