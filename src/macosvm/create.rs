@@ -132,13 +132,11 @@ unsafe fn create_serial_port_config() -> Id<VZVirtioConsoleDeviceSerialPortConfi
 
 unsafe fn create_directory_share_device_config(
     path: &Path,
-    tag: &str,
+    _tag: &str,
     readonly: bool,
 ) -> Id<VZVirtioFileSystemDeviceConfiguration> {
     let path = NSString::from_str(path.canonicalize().unwrap().to_str().unwrap());
     let url = NSURL::fileURLWithPath(&path);
-
-    let tag = NSString::from_str(tag);
 
     let shared_directory =
         VZSharedDirectory::initWithURL_readOnly(VZSharedDirectory::alloc(), &url, readonly);
