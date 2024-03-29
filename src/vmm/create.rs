@@ -59,9 +59,9 @@ struct MacosVmConfig {
     audio: bool,
 }
 
-fn load_macos_vm_config(path: &Path) -> MacosVmConfig {
-    let json_string = std::fs::read_to_string(path).unwrap();
-    from_str(&json_string).unwrap()
+fn load_macos_vm_config(path: &Path) -> Result<MacosVmConfig, std::io::Error> {
+    let json_string = std::fs::read_to_string(path)?;
+    Ok(serde_json::from_str(&json_string)?)
 }
 
 unsafe fn create_mac_platform_config(vm_config: &MacosVmConfig) -> Id<VZMacPlatformConfiguration> {
@@ -183,7 +183,7 @@ pub unsafe fn create_vm(
     bundle_path: &Path,
     container_id: &str,
 ) -> Id<VZVirtualMachineConfiguration> {
-    let macos_vm_config = load_macos_vm_config(&bundle_path.join("vm.json"));
+    let macos_vm_config = load_macos_vm_config(&bundle_path.join("vm.json")).unwrap();
     let mac_platform = create_mac_platform_config(&macos_vm_config);
     let disk = macos_vm_config
         .storage
