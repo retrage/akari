@@ -4,8 +4,33 @@ use std::path::PathBuf;
 
 use liboci_cli::Create;
 
-pub fn create(args: Create, _root_path: PathBuf) -> std::io::Result<()> {
+use crate::vmm;
+
+pub fn create(args: Create, root_path: PathBuf) -> std::io::Result<()> {
     println!("create: {:?}", args.bundle);
-    // Generate a VM configuration file from the bundle
+
+    // Open base vm config in root_path
+    let base_config_path = root_path.join("vm.json");
+    let mut config = vmm::config::load_vm_config(&base_config_path)?;
+
+    assert!(config.shares.is_empty());
+
+    let share = vmm::config::MacosVmSharedDirectory {
+        path: args.bundle,
+        automount: true,
+        read_only: false,
+    };
+    config.shares.push(share);
+
+    // TODO: Support pid_file
+    // TODO: Support console_socket
+
+    // Save the new VM configuration
+    let config_path = root_path.join(format!("{}.json", args.container_id));
+    let config_json = serde_json::to_string(&config)?;
+    std::fs::write(config_path, config_json)?;
+
+    // TODO: Ask the VMM to create the VM
+
     Ok(())
 }

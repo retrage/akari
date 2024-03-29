@@ -1,14 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Create a new VM
-
-use std::{
-    path::{Path, PathBuf},
-    rc::Rc,
-    sync::RwLock,
-    thread::sleep,
-    time::Duration,
-};
+use std::{path::Path, rc::Rc, sync::RwLock, thread::sleep, time::Duration};
 
 use block2::StackBlock;
 use icrate::{
@@ -19,50 +11,8 @@ use icrate::{
 use objc2::{rc::Id, ClassType};
 
 use base64::prelude::*;
-use serde::{Deserialize, Serialize};
-use serde_json::from_str;
 
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MacosVmStorage {
-    r#type: String,
-    file: PathBuf,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MacosVmNetwork {
-    r#type: String,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MacosVmDisplay {
-    dpi: usize,
-    width: usize,
-    height: usize,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MacosVmConfig {
-    version: usize,
-    serial: bool,
-    os: String,
-    hardware_model: String,
-    machine_id: String,
-    cpus: usize,
-    ram: usize,
-    storage: Vec<MacosVmStorage>,
-    networks: Vec<MacosVmNetwork>,
-    displays: Vec<MacosVmDisplay>,
-    audio: bool,
-}
-
-fn load_macos_vm_config(path: &Path) -> Result<MacosVmConfig, std::io::Error> {
-    let json_string = std::fs::read_to_string(path)?;
-    Ok(serde_json::from_str(&json_string)?)
-}
+use super::config::{load_vm_config, MacosVmConfig};
 
 unsafe fn create_mac_platform_config(vm_config: &MacosVmConfig) -> Id<VZMacPlatformConfiguration> {
     let mac_platform = VZMacPlatformConfiguration::new();
@@ -157,7 +107,6 @@ unsafe fn create_serial_port_config() -> Id<VZVirtioConsoleDeviceSerialPortConfi
 
 unsafe fn create_directory_share_device_config(
     path: &Path,
-    _tag: &str,
     readonly: bool,
 ) -> Id<VZVirtioFileSystemDeviceConfiguration> {
     let path = NSString::from_str(path.canonicalize().unwrap().to_str().unwrap());
@@ -179,36 +128,45 @@ unsafe fn create_directory_share_device_config(
     sharing_config
 }
 
-pub unsafe fn create_vm(
-    bundle_path: &Path,
+pub fn create_vm(
+    root_path: &Path,
     container_id: &str,
-) -> Id<VZVirtualMachineConfiguration> {
-    let macos_vm_config = load_macos_vm_config(&bundle_path.join("vm.json")).unwrap();
-    let mac_platform = create_mac_platform_config(&macos_vm_config);
+) -> Result<Id<VZVirtualMachineConfiguration>, std::io::Error> {
+    let config_path = root_path.join(format!("{}.json", container_id));
+
+    let macos_vm_config = load_vm_config(&config_path)?;
+    let mac_platform = unsafe { create_mac_platform_config(&macos_vm_config) };
+
     let disk = macos_vm_config
         .storage
         .iter()
         .find(|s| s.r#type == "disk")
         .unwrap();
-    let graphics_device = create_graphics_device_config();
-    let block_device = create_block_device_config(&disk.file);
-    let serial_port = create_serial_port_config();
+    let block_device = unsafe { create_block_device_config(&disk.file) };
+
+    let shared = macos_vm_config.shares.first().unwrap();
     let directory_share =
-        create_directory_share_device_config(&bundle_path.join("shared"), container_id, false);
+        unsafe { create_directory_share_device_config(&shared.path, shared.automount) };
 
-    let boot_loader = VZMacOSBootLoader::new();
+    let graphics_device = unsafe { create_graphics_device_config() };
+    let serial_port = unsafe { create_serial_port_config() };
 
-    let config = VZVirtualMachineConfiguration::new();
-    config.setPlatform(&mac_platform);
-    config.setCPUCount(macos_vm_config.cpus);
-    config.setMemorySize(macos_vm_config.ram.try_into().unwrap());
-    config.setBootLoader(Some(&boot_loader));
-    config.setGraphicsDevices(&NSArray::from_slice(&[graphics_device.as_super()]));
-    config.setStorageDevices(&NSArray::from_slice(&[block_device.as_super()]));
-    config.setSerialPorts(&NSArray::from_slice(&[serial_port.as_super()]));
-    config.setDirectorySharingDevices(&NSArray::from_slice(&[directory_share.as_super()]));
+    let boot_loader = unsafe { VZMacOSBootLoader::new() };
 
-    config
+    let config = unsafe {
+        let config = VZVirtualMachineConfiguration::new();
+        config.setPlatform(&mac_platform);
+        config.setCPUCount(macos_vm_config.cpus);
+        config.setMemorySize(macos_vm_config.ram.try_into().unwrap());
+        config.setBootLoader(Some(&boot_loader));
+        config.setGraphicsDevices(&NSArray::from_slice(&[graphics_device.as_super()]));
+        config.setStorageDevices(&NSArray::from_slice(&[block_device.as_super()]));
+        config.setSerialPorts(&NSArray::from_slice(&[serial_port.as_super()]));
+        config.setDirectorySharingDevices(&NSArray::from_slice(&[directory_share.as_super()]));
+        config
+    };
+
+    Ok(config)
 }
 
 pub unsafe fn start_vm(config: Id<VZVirtualMachineConfiguration>) {
