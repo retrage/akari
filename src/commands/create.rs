@@ -3,11 +3,12 @@
 
 use std::path::PathBuf;
 
+use anyhow::Result;
 use liboci_cli::Create;
 
 use crate::vmm;
 
-pub fn create(args: Create, root_path: PathBuf) -> std::io::Result<()> {
+pub fn create(args: Create, root_path: PathBuf) -> Result<()> {
     println!("create: {:?}", args.bundle);
 
     // Open base vm config in root_path

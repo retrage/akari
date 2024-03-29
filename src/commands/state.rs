@@ -3,9 +3,9 @@
 
 use std::{collections::HashMap, path::PathBuf};
 
-use serde::{Deserialize, Serialize};
-
+use anyhow::Result;
 use liboci_cli::State;
+use serde::{Deserialize, Serialize};
 
 use crate::vmm;
 
@@ -55,7 +55,7 @@ impl ContainerState {
     }
 }
 
-pub fn state(args: State, root_path: PathBuf) -> std::io::Result<()> {
+pub fn state(args: State, root_path: PathBuf) -> Result<()> {
     let config_path = root_path.join(format!("{}.json", args.container_id));
     let pid_path = root_path.join(format!("{}.pid", args.container_id));
 
@@ -74,7 +74,10 @@ pub fn state(args: State, root_path: PathBuf) -> std::io::Result<()> {
     };
 
     let vm_config = vmm::config::load_vm_config(&config_path)?;
-    let share = vm_config.shares.first().unwrap();
+    let share = vm_config
+        .shares
+        .first()
+        .ok_or(anyhow::anyhow!("Bundle path not found"))?;
     let bundle = share.path.clone();
 
     let mut state = ContainerState::new(args.container_id, status, bundle);

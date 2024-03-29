@@ -3,9 +3,10 @@
 
 use std::path::PathBuf;
 
+use anyhow::Result;
 use liboci_cli::Delete;
 
-pub fn delete(args: Delete, _root_path: PathBuf) -> std::io::Result<()> {
+pub fn delete(args: Delete, _root_path: PathBuf) -> Result<()> {
     println!("Delete: {}", args.container_id);
     Ok(())
 }

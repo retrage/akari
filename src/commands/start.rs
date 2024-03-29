@@ -3,12 +3,12 @@
 
 use std::path::PathBuf;
 
-use crate::vmm::start;
+use anyhow::Result;
 use liboci_cli::Start;
 
-pub fn start(args: Start, root_path: PathBuf) -> std::io::Result<()> {
-    println!("Start: {}", args.container_id);
+use crate::vmm::start;
 
+pub fn start(args: Start, root_path: PathBuf) -> Result<()> {
     // TODO: Create a VM on create
     let config = start::create_vm(&root_path, &args.container_id)?;
 

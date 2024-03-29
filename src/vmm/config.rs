@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -51,7 +52,7 @@ pub struct MacosVmConfig {
     pub audio: bool,
 }
 
-pub fn load_vm_config(path: &Path) -> Result<MacosVmConfig, std::io::Error> {
+pub fn load_vm_config(path: &Path) -> Result<MacosVmConfig> {
     let json_string = std::fs::read_to_string(path)?;
     Ok(serde_json::from_str(&json_string)?)
 }

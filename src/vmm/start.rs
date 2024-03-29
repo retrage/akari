@@ -3,6 +3,7 @@
 
 use std::{path::Path, rc::Rc, sync::RwLock, thread::sleep, time::Duration};
 
+use anyhow::Result;
 use block2::StackBlock;
 use icrate::{
     queue::{Queue, QueueAttribute},
@@ -15,23 +16,33 @@ use base64::prelude::*;
 
 use super::config::{load_vm_config, MacosVmConfig};
 
-unsafe fn create_mac_platform_config(vm_config: &MacosVmConfig) -> Id<VZMacPlatformConfiguration> {
+unsafe fn create_mac_platform_config(
+    vm_config: &MacosVmConfig,
+) -> Result<Id<VZMacPlatformConfiguration>> {
     let mac_platform = VZMacPlatformConfiguration::new();
 
     let hw_model_data = BASE64_STANDARD
         .decode(vm_config.hardware_model.as_bytes())
-        .unwrap();
+        .map_err(|e| anyhow::anyhow!("Failed to decode hardware model: {}", e))?;
     let machine_id_data = BASE64_STANDARD
         .decode(vm_config.machine_id.as_bytes())
-        .unwrap();
+        .map_err(|e| anyhow::anyhow!("Failed to decode machine id: {}", e))?;
 
     let aux = vm_config
         .storage
         .iter()
         .find(|s| s.r#type == "aux")
-        .unwrap();
+        .ok_or(anyhow::anyhow!("Auxiliary storage not found"))?;
 
-    let aux_path = NSString::from_str(aux.file.canonicalize().unwrap().to_str().unwrap());
+    let aux_path = NSString::from_str(
+        aux.file
+            .canonicalize()
+            .map_err(|e| anyhow::anyhow!("Failed to canonicalize auxiliary storage path: {}", e))?
+            .to_str()
+            .ok_or(anyhow::anyhow!(
+                "Failed to convert auxiliary storage path to string"
+            ))?,
+    );
     let aux_url = NSURL::fileURLWithPath(&aux_path);
 
     let aux_storage = VZMacAuxiliaryStorage::initWithURL(VZMacAuxiliaryStorage::alloc(), &aux_url);
@@ -41,9 +52,9 @@ unsafe fn create_mac_platform_config(vm_config: &MacosVmConfig) -> Id<VZMacPlatf
 
     let hw_model =
         VZMacHardwareModel::initWithDataRepresentation(VZMacHardwareModel::alloc(), &hw_model_data)
-            .unwrap();
+            .ok_or(anyhow::anyhow!("Failed to create hardware model"))?;
     if !hw_model.isSupported() {
-        panic!("Hardware model is not supported");
+        return Err(anyhow::anyhow!("Hardware model is not supported"));
     }
     mac_platform.setHardwareModel(&hw_model);
 
@@ -53,10 +64,10 @@ unsafe fn create_mac_platform_config(vm_config: &MacosVmConfig) -> Id<VZMacPlatf
         VZMacMachineIdentifier::alloc(),
         &machine_id_data,
     )
-    .unwrap();
+    .ok_or(anyhow::anyhow!("Failed to create machine id"))?;
     mac_platform.setMachineIdentifier(&machine_id);
 
-    mac_platform
+    Ok(mac_platform)
 }
 
 unsafe fn create_graphics_device_config() -> Id<VZMacGraphicsDeviceConfiguration> {
@@ -73,8 +84,15 @@ unsafe fn create_graphics_device_config() -> Id<VZMacGraphicsDeviceConfiguration
     graphics
 }
 
-unsafe fn create_block_device_config(path: &Path) -> Id<VZVirtioBlockDeviceConfiguration> {
-    let path = NSString::from_str(path.canonicalize().unwrap().to_str().unwrap());
+unsafe fn create_block_device_config(path: &Path) -> Result<Id<VZVirtioBlockDeviceConfiguration>> {
+    let path = NSString::from_str(
+        path.canonicalize()
+            .map_err(|e| anyhow::anyhow!(e))?
+            .to_str()
+            .ok_or(anyhow::anyhow!(
+                "Failed to convert block device path to string"
+            ))?,
+    );
     let url = NSURL::fileURLWithPath(&path);
 
     let block_attachment = VZDiskImageStorageDeviceAttachment::initWithURL_readOnly_error(
@@ -82,12 +100,12 @@ unsafe fn create_block_device_config(path: &Path) -> Id<VZVirtioBlockDeviceConfi
         &url,
         false,
     )
-    .unwrap();
+    .map_err(|e| anyhow::anyhow!(e))?;
 
-    VZVirtioBlockDeviceConfiguration::initWithAttachment(
+    Ok(VZVirtioBlockDeviceConfiguration::initWithAttachment(
         VZVirtioBlockDeviceConfiguration::alloc(),
         &block_attachment,
-    )
+    ))
 }
 
 unsafe fn create_serial_port_config() -> Id<VZVirtioConsoleDeviceSerialPortConfiguration> {
@@ -109,8 +127,15 @@ unsafe fn create_serial_port_config() -> Id<VZVirtioConsoleDeviceSerialPortConfi
 unsafe fn create_directory_share_device_config(
     path: &Path,
     readonly: bool,
-) -> Id<VZVirtioFileSystemDeviceConfiguration> {
-    let path = NSString::from_str(path.canonicalize().unwrap().to_str().unwrap());
+) -> Result<Id<VZVirtioFileSystemDeviceConfiguration>> {
+    let path = NSString::from_str(
+        path.canonicalize()
+            .map_err(|e| anyhow::anyhow!(e))?
+            .to_str()
+            .ok_or(anyhow::anyhow!(
+                "Failed to convert shared directory path to string"
+            ))?,
+    );
     let url = NSURL::fileURLWithPath(&path);
 
     let shared_directory =
@@ -126,28 +151,31 @@ unsafe fn create_directory_share_device_config(
     );
     sharing_config.setShare(Some(&single_directory_share));
 
-    sharing_config
+    Ok(sharing_config)
 }
 
 pub fn create_vm(
     root_path: &Path,
     container_id: &str,
-) -> Result<Id<VZVirtualMachineConfiguration>, std::io::Error> {
+) -> Result<Id<VZVirtualMachineConfiguration>> {
     let config_path = root_path.join(format!("{}.json", container_id));
 
     let macos_vm_config = load_vm_config(&config_path)?;
-    let mac_platform = unsafe { create_mac_platform_config(&macos_vm_config) };
+    let mac_platform = unsafe { create_mac_platform_config(&macos_vm_config)? };
 
     let disk = macos_vm_config
         .storage
         .iter()
         .find(|s| s.r#type == "disk")
-        .unwrap();
-    let block_device = unsafe { create_block_device_config(&disk.file) };
+        .ok_or(anyhow::anyhow!("Disk image not found"))?;
+    let block_device = unsafe { create_block_device_config(&disk.file)? };
 
-    let shared = macos_vm_config.shares.first().unwrap();
+    let shared = macos_vm_config
+        .shares
+        .first()
+        .ok_or(anyhow::anyhow!("Shared directory not found"))?;
     let directory_share =
-        unsafe { create_directory_share_device_config(&shared.path, shared.automount) };
+        unsafe { create_directory_share_device_config(&shared.path, shared.automount)? };
 
     let graphics_device = unsafe { create_graphics_device_config() };
     let serial_port = unsafe { create_serial_port_config() };
@@ -158,7 +186,12 @@ pub fn create_vm(
         let config = VZVirtualMachineConfiguration::new();
         config.setPlatform(&mac_platform);
         config.setCPUCount(macos_vm_config.cpus);
-        config.setMemorySize(macos_vm_config.ram.try_into().unwrap());
+        config.setMemorySize(
+            macos_vm_config
+                .ram
+                .try_into()
+                .map_err(|_| anyhow::anyhow!("Invalid RAM size"))?,
+        );
         config.setBootLoader(Some(&boot_loader));
         config.setGraphicsDevices(&NSArray::from_slice(&[graphics_device.as_super()]));
         config.setStorageDevices(&NSArray::from_slice(&[block_device.as_super()]));
@@ -188,7 +221,7 @@ pub unsafe fn start_vm(config: Id<VZVirtualMachineConfiguration>) {
                 });
                 let completion_handler = completion_handler.copy();
                 vm.write()
-                    .unwrap()
+                    .expect("Failed to lock VM")
                     .startWithCompletionHandler(&completion_handler);
             });
             let dispatch_block = dispatch_block.clone();
