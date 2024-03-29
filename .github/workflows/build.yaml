@@ -1,0 +1,30 @@
+name: Build
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - main
+
+env:
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  build:
+    name: Build
+    runs-on: macos-12
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust components
+        run: rustup component add rust-src clippy rustfmt
+      - name: Build (debug)
+        run: cargo build
+      - name: Build (release)
+        run: cargo build --release
+      - name: Clippy
+        run: cargo clippy
+      - name: Formatting
+        run: cargo fmt --all -- --check
