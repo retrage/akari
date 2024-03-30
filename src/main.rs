@@ -10,7 +10,12 @@ use anyhow::Result;
 use clap::Parser;
 use liboci_cli::StandardCmd;
 
-use commands::{create, delete, kill, start, state};
+use commands::{create, delete, kill, spec, start, state};
+
+#[derive(clap::Parser, Debug)]
+pub enum CommonCmd {
+    Spec(liboci_cli::Spec),
+}
 
 // The OCI Command Line Interface document doesn't define any global
 // flags, but these are commonly accepted by runtimes
@@ -46,6 +51,8 @@ struct Opts {
 enum SubCommand {
     #[clap(flatten)]
     Standard(Box<liboci_cli::StandardCmd>),
+    #[clap(flatten)]
+    Common(Box<CommonCmd>),
 }
 
 fn main() -> Result<()> {
@@ -71,6 +78,9 @@ fn main() -> Result<()> {
             StandardCmd::Kill(kill) => kill::kill(kill, root_path),
             StandardCmd::Delete(delete) => delete::delete(delete, root_path),
             StandardCmd::State(state) => state::state(state, root_path),
+        },
+        SubCommand::Common(cmd) => match *cmd {
+            CommonCmd::Spec(spec) => spec::spec(spec),
         },
     }
 }
