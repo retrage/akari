@@ -27,8 +27,13 @@ pub fn create(args: Create, root_path: PathBuf) -> Result<()> {
     let spec: oci_spec::runtime::Spec = serde_json::from_str(&std::fs::read_to_string(spec_path)?)?;
 
     if let Some(root) = spec.root() {
+        let root_path = if root.path().is_relative() {
+            args.bundle.join(root.path()).canonicalize()?
+        } else {
+            root.path().canonicalize()?
+        };
         let rootfs = vmm::config::MacosVmSharedDirectory {
-            path: root.path().clone(),
+            path: root_path,
             automount: true,
             read_only: root.readonly().unwrap_or(false),
         };
@@ -44,7 +49,7 @@ pub fn create(args: Create, root_path: PathBuf) -> Result<()> {
     // TODO: Support pid_file
     // TODO: Support console_socket
 
-    let config_json = serde_json::to_string(&vm_config)?;
+    let config_json = serde_json::to_string_pretty(&vm_config)?;
     std::fs::write(vm_config_path, config_json)?; // TODO: Potential TOCTOU bug
 
     // TODO: Ask the VMM to create the VM
