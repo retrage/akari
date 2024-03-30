@@ -21,6 +21,12 @@ pub struct MacosVmNetwork {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct MacosVmSerial {
+    pub path: PathBuf,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MacosVmSharedDirectory {
     pub path: PathBuf,
     pub automount: bool,
@@ -39,7 +45,7 @@ pub struct MacosVmDisplay {
 #[serde(rename_all = "camelCase")]
 pub struct MacosVmConfig {
     pub version: usize,
-    pub serial: bool,
+    pub serial: Option<MacosVmSerial>,
     pub os: String,
     pub hardware_model: String,
     pub machine_id: String,

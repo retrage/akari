@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
-use std::{path::Path, rc::Rc, sync::RwLock, thread::sleep, time::Duration};
+use std::{
+    os::{fd::AsRawFd, unix::net::UnixStream},
+    path::Path,
+    rc::Rc,
+    sync::RwLock,
+    thread::sleep,
+    time::Duration,
+};
 
 use anyhow::Result;
 use block2::StackBlock;
@@ -14,7 +21,7 @@ use objc2::{msg_send_id, rc::Id, ClassType};
 
 use base64::prelude::*;
 
-use super::config::{load_vm_config, MacosVmConfig};
+use super::config::MacosVmConfig;
 
 unsafe fn create_mac_platform_config(
     vm_config: &MacosVmConfig,
@@ -108,7 +115,9 @@ unsafe fn create_block_device_config(path: &Path) -> Result<Id<VZVirtioBlockDevi
     ))
 }
 
-unsafe fn create_serial_port_config() -> Id<VZVirtioConsoleDeviceSerialPortConfiguration> {
+#[allow(dead_code)]
+unsafe fn create_stdio_serial_port_config(
+) -> Result<Id<VZVirtioConsoleDeviceSerialPortConfiguration>> {
     let file_handle_in = NSFileHandle::fileHandleWithStandardInput();
     let file_handle_out = NSFileHandle::fileHandleWithStandardOutput();
     let attachment =
@@ -121,7 +130,27 @@ unsafe fn create_serial_port_config() -> Id<VZVirtioConsoleDeviceSerialPortConfi
     let serial = VZVirtioConsoleDeviceSerialPortConfiguration::new();
     serial.setAttachment(Some(attachment.as_ref()));
 
-    serial
+    Ok(serial)
+}
+
+unsafe fn create_fd_serial_port_config(
+    fd: Option<i32>,
+) -> Result<Id<VZVirtioConsoleDeviceSerialPortConfiguration>> {
+    let file_handle = match fd {
+        Some(fd) => NSFileHandle::initWithFileDescriptor(NSFileHandle::alloc(), fd),
+        None => NSFileHandle::fileHandleWithNullDevice(),
+    };
+    let attachment =
+        VZFileHandleSerialPortAttachment::initWithFileHandleForReading_fileHandleForWriting(
+            VZFileHandleSerialPortAttachment::alloc(),
+            Some(&file_handle),
+            Some(&file_handle),
+        );
+
+    let serial = VZVirtioConsoleDeviceSerialPortConfiguration::new();
+    serial.setAttachment(Some(&attachment));
+
+    Ok(serial)
 }
 
 unsafe fn create_directory_share_device_config(
@@ -155,41 +184,40 @@ unsafe fn create_directory_share_device_config(
 }
 
 pub fn create_vm(
-    root_path: &Path,
-    container_id: &str,
+    vm_config: MacosVmConfig,
+    serial: &Option<UnixStream>,
 ) -> Result<Id<VZVirtualMachineConfiguration>> {
-    let config_path = root_path.join(format!("{}.json", container_id));
+    let mac_platform = unsafe { create_mac_platform_config(&vm_config)? };
 
-    let macos_vm_config = load_vm_config(&config_path)?;
-    let mac_platform = unsafe { create_mac_platform_config(&macos_vm_config)? };
-
-    let disk = macos_vm_config
+    let disk = vm_config
         .storage
         .iter()
         .find(|s| s.r#type == "disk")
         .ok_or(anyhow::anyhow!("Disk image not found"))?;
     let block_device = unsafe { create_block_device_config(&disk.file)? };
 
-    let shares = macos_vm_config
+    let fd = serial.as_ref().map(|sock| sock.as_raw_fd());
+    let serial_port = unsafe { create_fd_serial_port_config(fd)? };
+
+    let shares = vm_config
         .shares
         .ok_or(anyhow::anyhow!("Shared directory not found"))?;
     let shared = shares
         .first()
         .ok_or(anyhow::anyhow!("Shared directory not found"))?;
     let directory_share =
-        unsafe { create_directory_share_device_config(&shared.path, shared.automount)? };
+        unsafe { create_directory_share_device_config(&shared.path, shared.read_only)? };
 
     let graphics_device = unsafe { create_graphics_device_config() };
-    let serial_port = unsafe { create_serial_port_config() };
 
     let boot_loader = unsafe { VZMacOSBootLoader::new() };
 
     let config = unsafe {
         let config = VZVirtualMachineConfiguration::new();
         config.setPlatform(&mac_platform);
-        config.setCPUCount(macos_vm_config.cpus);
+        config.setCPUCount(vm_config.cpus);
         config.setMemorySize(
-            macos_vm_config
+            vm_config
                 .ram
                 .try_into()
                 .map_err(|_| anyhow::anyhow!("Invalid RAM size"))?,

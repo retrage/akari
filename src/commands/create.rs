@@ -47,7 +47,14 @@ pub fn create(args: Create, root_path: PathBuf) -> Result<()> {
     // TODO: spec.mounts
 
     // TODO: Support pid_file
-    // TODO: Support console_socket
+
+    // Handle console_socket
+    if let Some(console_socket) = args.console_socket {
+        let serial = vmm::config::MacosVmSerial {
+            path: console_socket,
+        };
+        vm_config.serial = Some(serial);
+    }
 
     let config_json = serde_json::to_string_pretty(&vm_config)?;
     std::fs::write(vm_config_path, config_json)?; // TODO: Potential TOCTOU bug
