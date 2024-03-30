@@ -18,5 +18,10 @@ build:
 	$(CARGO) build && \
 		$(CODESIGN) -f --entitlement $(ENTITLEMENTS_PATH) -s - $(BIN_PATH)
 
-.PHONY: build
+check:
+	$(CARGO) check && \
+		$(CARGO) fmt && \
+		$(CARGO) clippy
+
+.PHONY: build check
 
