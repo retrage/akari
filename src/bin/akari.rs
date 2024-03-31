@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
-mod commands;
-mod vmm;
-
 use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
 use liboci_cli::StandardCmd;
 
-use commands::{create, delete, kill, spec, start, state};
+use akari::commands::{create, delete, kill, spec, start, state};
 
 #[derive(clap::Parser, Debug)]
 pub enum CommonCmd {

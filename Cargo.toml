@@ -22,3 +22,6 @@ icrate = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualiza
 ] }
 objc2 = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization" }
 block2 = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization" }
+
+[[bin]]
+name = "akari"
