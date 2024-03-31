@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
-use std::path::PathBuf;
+use std::{os::unix::net::UnixStream, path::PathBuf};
 
 use anyhow::Result;
 use liboci_cli::Create;
 
-use crate::vmm;
+use crate::{api, vmm};
 
-pub fn create(args: Create, root_path: PathBuf) -> Result<()> {
+pub fn create(args: Create, root_path: PathBuf, vmm_sock: &mut UnixStream) -> Result<()> {
     let vm_config_path = root_path.join(format!("{}.json", args.container_id));
     if vm_config_path.exists() {
         return Err(anyhow::anyhow!("VM configuration already exists"));
@@ -42,12 +42,6 @@ pub fn create(args: Create, root_path: PathBuf) -> Result<()> {
         return Err(anyhow::anyhow!("Root path is not specified"));
     }
 
-    // TODO: spec.process
-    // TODO: spec.hostname
-    // TODO: spec.mounts
-
-    // TODO: Support pid_file
-
     // Handle console_socket
     if let Some(console_socket) = args.console_socket {
         let serial = vmm::config::MacosVmSerial {
@@ -56,10 +50,19 @@ pub fn create(args: Create, root_path: PathBuf) -> Result<()> {
         vm_config.serial = Some(serial);
     }
 
-    let config_json = serde_json::to_string_pretty(&vm_config)?;
-    std::fs::write(vm_config_path, config_json)?; // TODO: Potential TOCTOU bug
+    // TODO: spec.process
+    // TODO: spec.hostname
+    // TODO: spec.mounts
 
-    // TODO: Ask the VMM to create the VM
+    // TODO: Support pid_file
+
+    let request = api::Request {
+        container_id: args.container_id.clone(),
+        command: api::Command::Create,
+        vm_config: Some(vm_config.clone()),
+    };
+
+    request.send(vmm_sock)?;
 
     Ok(())
 }

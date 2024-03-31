@@ -233,6 +233,7 @@ pub fn create_vm(
     Ok(config)
 }
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe fn start_vm(config: Id<VZVirtualMachineConfiguration>) {
     match config.validateWithError() {
         Ok(_) => {

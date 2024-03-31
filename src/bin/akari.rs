@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
-use std::path::PathBuf;
+use std::{os::unix::net::UnixStream, path::PathBuf};
 
 use anyhow::Result;
 use clap::Parser;
@@ -33,6 +33,9 @@ pub struct GlobalOpts {
     /// Enable systemd cgroup manager, rather then use the cgroupfs directly.
     #[clap(skip)]
     pub systemd_cgroup: bool,
+    /// Specify the path to the VMM socket
+    #[clap(short, long)]
+    pub vmm_sock: Option<PathBuf>,
 }
 
 #[derive(clap::Parser)]
@@ -68,13 +71,21 @@ fn main() -> Result<()> {
         }
     };
 
+    let vmm_sock_path = opts.global.vmm_sock.unwrap_or_else(|| {
+        let mut default_vmm_sock_path = root_path.clone();
+        default_vmm_sock_path.push("vmm.sock");
+        default_vmm_sock_path
+    });
+
+    let mut vmm_sock = UnixStream::connect(vmm_sock_path)?;
+
     match opts.subcmd {
         SubCommand::Standard(cmd) => match *cmd {
-            StandardCmd::Create(create) => create::create(create, root_path),
-            StandardCmd::Start(start) => start::start(start, root_path),
+            StandardCmd::Create(create) => create::create(create, root_path, &mut vmm_sock),
+            StandardCmd::Start(start) => start::start(start, root_path, &mut vmm_sock),
             StandardCmd::Kill(kill) => kill::kill(kill, root_path),
-            StandardCmd::Delete(delete) => delete::delete(delete, root_path),
-            StandardCmd::State(state) => state::state(state, root_path),
+            StandardCmd::Delete(delete) => delete::delete(delete, root_path, &mut vmm_sock),
+            StandardCmd::State(state) => state::state(state, root_path, &mut vmm_sock),
         },
         SubCommand::Common(cmd) => match *cmd {
             CommonCmd::Spec(spec) => spec::spec(spec),

@@ -4,9 +4,9 @@ SHELL := zsh
 
 BUILD_TYPE := debug
 
-BIN_NAME := akari
+VMM_NAME := akari-vm
 ROOT_DIR := $(strip $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST)))))
-BIN_PATH := $(ROOT_DIR)/target/$(BUILD_TYPE)/$(BIN_NAME)
+VMM_PATH := $(ROOT_DIR)/target/$(BUILD_TYPE)/$(VMM_NAME)
 
 ENTITLEMENTS := runtime.entitlements
 ENTITLEMENTS_PATH := $(ROOT_DIR)/$(ENTITLEMENTS)
@@ -16,7 +16,7 @@ CODESIGN ?= codesign
 
 build:
 	$(CARGO) build && \
-		$(CODESIGN) -f --entitlement $(ENTITLEMENTS_PATH) -s - $(BIN_PATH)
+		$(CODESIGN) -f --entitlement $(ENTITLEMENTS_PATH) -s - $(VMM_PATH)
 
 check:
 	$(CARGO) check && \

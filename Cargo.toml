@@ -25,3 +25,6 @@ block2 = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualiza
 
 [[bin]]
 name = "akari"
+
+[[bin]]
+name = "akari-vm"

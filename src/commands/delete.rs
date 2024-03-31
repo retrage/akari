@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
-use std::path::PathBuf;
+use std::{os::unix::net::UnixStream, path::PathBuf};
 
 use anyhow::Result;
 use liboci_cli::Delete;
 
-pub fn delete(args: Delete, root_path: PathBuf) -> Result<()> {
-    let vm_config_path = root_path.join(format!("{}.json", args.container_id));
-    if !vm_config_path.exists() {
-        return Err(anyhow::anyhow!("VM configuration does not exist"));
-    }
+use crate::api;
 
-    // TODO: Check if the VM is running
+pub fn delete(args: Delete, _root_path: PathBuf, vmm_sock: &mut UnixStream) -> Result<()> {
+    let request = api::Request {
+        container_id: args.container_id.clone(),
+        command: api::Command::Delete,
+        vm_config: None,
+    };
 
-    std::fs::remove_file(vm_config_path)?;
+    request.send(vmm_sock)?;
 
     Ok(())
 }

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, os::unix::net::UnixStream, path::PathBuf};
 
 use anyhow::Result;
 use liboci_cli::State;
 use serde::{Deserialize, Serialize};
 
-use crate::vmm;
+use crate::api;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -34,7 +34,7 @@ struct ContainerState {
     status: ContainerStatus,
     // ID of the container process
     #[serde(skip_serializing_if = "Option::is_none")]
-    pid: Option<u32>,
+    pid: Option<i32>,
     // absolute path to the container's bundle directory
     bundle: PathBuf,
     // annotations associated with the container
@@ -55,35 +55,35 @@ impl ContainerState {
     }
 }
 
-pub fn state(args: State, root_path: PathBuf) -> Result<()> {
-    let config_path = root_path.join(format!("{}.json", args.container_id));
-    let pid_path = root_path.join(format!("{}.pid", args.container_id));
+pub fn state(args: State, _root_path: PathBuf, vmm_sock: &mut UnixStream) -> Result<()> {
+    let request = api::Request {
+        container_id: args.container_id.clone(),
+        command: api::Command::State,
+        vm_config: None,
+    };
+    request.send(vmm_sock)?;
 
-    let mut pid: Option<u32> = None;
-    let status = if config_path.exists() {
-        if pid_path.exists() {
-            pid = std::fs::read_to_string(&pid_path)
-                .ok()
-                .and_then(|s| s.trim().parse().ok());
-            ContainerStatus::Running
-        } else {
-            ContainerStatus::Created
-        }
-    } else {
-        ContainerStatus::Stopped
+    let response = api::Response::recv(vmm_sock)?;
+
+    let status = match response.status {
+        api::VmStatus::Created => ContainerStatus::Created,
+        api::VmStatus::Running => ContainerStatus::Running,
+        api::VmStatus::Stopped => ContainerStatus::Stopped,
+        _ => ContainerStatus::Creating,
     };
 
-    let vm_config = vmm::config::load_vm_config(&config_path)?;
-    let shares = vm_config
+    // TODO
+    let bundle = response
+        .config
         .shares
-        .ok_or(anyhow::anyhow!("Shared directory not found"))?;
-    let share = shares
+        .unwrap()
         .first()
-        .ok_or(anyhow::anyhow!("Bundle path not found"))?;
-    let bundle = share.path.clone();
+        .unwrap()
+        .path
+        .clone();
 
     let mut state = ContainerState::new(args.container_id, status, bundle);
-    state.pid = pid;
+    state.pid = response.pid;
 
     println!("{}", serde_json::to_string_pretty(&state)?);
     std::process::exit(0);
