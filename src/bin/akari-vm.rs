@@ -57,6 +57,7 @@ fn create(
         };
 
         let config = vmm::start::create_vm(vm_config, &serial_sock)?;
+        let vm = vmm::start::Vm::new(config.clone())?;
         tx.send(api::VmStatus::Created)?;
 
         let cmd_listener = UnixListener::bind("/tmp/cmd.sock")?;
@@ -64,9 +65,8 @@ fn create(
             let mut stream = stream?;
             let cmd = api::Command::recv(&mut stream)?;
             match cmd {
-                api::Command::Start => unsafe {
-                    vmm::start::start_vm(config.clone());
-                },
+                api::Command::Start => vm.start()?,
+                api::Command::Kill => vm.kill()?,
                 _ => todo!(),
             }
         }
@@ -79,6 +79,25 @@ fn create(
         .status = rx.recv()?;
 
     Ok(thread)
+}
+
+fn kill(state_map: &mut VmStateMap, request: api::Request) -> Result<()> {
+    let state = state_map
+        .get_mut(&request.container_id)
+        .ok_or(anyhow::anyhow!("Container not found"))?;
+    match state.status {
+        api::VmStatus::Created | api::VmStatus::Running => {
+            let mut cmd_sock = UnixStream::connect("/tmp/cmd.sock")?;
+            let cmd = api::Command::Kill;
+            cmd.send(&mut cmd_sock)?;
+
+            state.status = api::VmStatus::Stopped;
+        }
+        api::VmStatus::Stopped => return Err(anyhow::anyhow!("Container already stopped")),
+        _ => return Err(anyhow::anyhow!("Container not created")),
+    }
+
+    Ok(())
 }
 
 fn start(state_map: &mut VmStateMap, request: api::Request) -> Result<()> {
@@ -135,7 +154,7 @@ fn main() -> Result<()> {
                 threads.push(thread);
             }
             api::Command::Delete => todo!(),
-            api::Command::Kill => todo!(),
+            api::Command::Kill => kill(&mut state_map, request)?,
             api::Command::Start => start(&mut state_map, request)?,
             api::Command::State => state(&mut stream, &state_map, request)?,
         }

@@ -4,14 +4,11 @@
 use std::{
     os::{fd::AsRawFd, unix::net::UnixStream},
     path::Path,
-    rc::Rc,
-    sync::RwLock,
-    thread::sleep,
-    time::Duration,
+    sync::{mpsc, Arc, RwLock},
 };
 
 use anyhow::Result;
-use block2::StackBlock;
+use block2::RcBlock;
 use icrate::{
     queue::{Queue, QueueAttribute},
     Foundation::{NSArray, NSData, NSError, NSFileHandle, NSString, NSURL},
@@ -233,32 +230,76 @@ pub fn create_vm(
     Ok(config)
 }
 
-#[allow(clippy::missing_safety_doc)]
-pub unsafe fn start_vm(config: Id<VZVirtualMachineConfiguration>) {
-    match config.validateWithError() {
-        Ok(_) => {
-            let queue = Queue::create("com.akari.vm.queue", QueueAttribute::Serial);
-            let vm: Rc<RwLock<Id<VZVirtualMachine>>> = Rc::new(RwLock::new(
-                msg_send_id![VZVirtualMachine::alloc(), initWithConfiguration: config.as_ref(), queue: queue.ptr],
-            ));
-            let dispatch_block = StackBlock::new(move || {
-                let completion_handler = StackBlock::new(|error: *mut NSError| {
-                    if !error.is_null() {
-                        println!("error: {:?}", error);
-                    }
-                });
-                let completion_handler = completion_handler.copy();
-                vm.write()
-                    .expect("Failed to lock VM")
-                    .startWithCompletionHandler(&completion_handler);
-            });
-            let dispatch_block = dispatch_block.clone();
-            queue.exec_block_async(&dispatch_block);
+pub struct Vm {
+    vm: Arc<RwLock<Id<VZVirtualMachine>>>,
+    queue: Queue,
+}
 
-            sleep(Duration::from_secs(3600)); // FIXME: wait for a signal to stop
+impl Vm {
+    pub fn new(config: Id<VZVirtualMachineConfiguration>) -> Result<Self> {
+        unsafe {
+            if let Err(e) = config.validateWithError() {
+                return Err(anyhow::anyhow!(e));
+            }
         }
-        Err(e) => {
-            println!("error: {:?}", e);
-        }
+        let queue = Queue::create("com.akari.vm.queue", QueueAttribute::Serial);
+        let vm: Arc<RwLock<Id<VZVirtualMachine>>> = Arc::new(RwLock::new(unsafe {
+            msg_send_id![VZVirtualMachine::alloc(), initWithConfiguration: config.as_ref(), queue: queue.ptr]
+        }));
+        let vm = Vm { vm, queue };
+        Ok(vm)
+    }
+
+    pub fn start(&self) -> Result<()> {
+        let (tx, rx) = mpsc::channel::<Result<()>>();
+        let vm_clone = self.vm.clone();
+        let dispatch_block = RcBlock::new(move || {
+            let inner_tx = tx.clone();
+            let completion_handler = RcBlock::new(move |error: *mut NSError| {
+                if !error.is_null() {
+                    inner_tx
+                        .send(Err(anyhow::anyhow!("Failed to start VM")))
+                        .expect("Failed to send error");
+                } else {
+                    inner_tx.send(Ok(())).expect("Failed to send result");
+                }
+            });
+            unsafe {
+                vm_clone
+                    .write()
+                    .unwrap()
+                    .startWithCompletionHandler(&completion_handler);
+            }
+        });
+        self.queue.exec_block_async(&dispatch_block);
+        let result = rx.recv()?;
+        result
+    }
+
+    pub fn kill(&self) -> Result<()> {
+        let (tx, rx) = mpsc::channel::<Result<()>>();
+        let vm_clone = self.vm.clone();
+        let dispatch_block = RcBlock::new(move || {
+            let inner_tx = tx.clone();
+            let completion_handler = RcBlock::new(move |error: *mut NSError| {
+                if !error.is_null() {
+                    inner_tx
+                        .send(Err(anyhow::anyhow!("Failed to stop VM")))
+                        .expect("Failed to send error");
+                } else {
+                    inner_tx.send(Ok(())).expect("Failed to send result");
+                }
+            });
+            unsafe {
+                println!("can stop: {:?}", vm_clone.read().unwrap().canStop());
+                vm_clone
+                    .write()
+                    .unwrap()
+                    .stopWithCompletionHandler(&completion_handler);
+            }
+        });
+        self.queue.exec_block_async(&dispatch_block);
+        let result = rx.recv()?;
+        result
     }
 }

@@ -83,7 +83,7 @@ fn main() -> Result<()> {
         SubCommand::Standard(cmd) => match *cmd {
             StandardCmd::Create(create) => create::create(create, root_path, &mut vmm_sock),
             StandardCmd::Start(start) => start::start(start, root_path, &mut vmm_sock),
-            StandardCmd::Kill(kill) => kill::kill(kill, root_path),
+            StandardCmd::Kill(kill) => kill::kill(kill, root_path, &mut vmm_sock),
             StandardCmd::Delete(delete) => delete::delete(delete, root_path, &mut vmm_sock),
             StandardCmd::State(state) => state::state(state, root_path, &mut vmm_sock),
         },
