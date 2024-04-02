@@ -4,7 +4,8 @@
 use std::{
     os::{fd::AsRawFd, unix::net::UnixStream},
     path::Path,
-    sync::{mpsc, Arc, RwLock},
+    rc::Rc,
+    sync::{mpsc, RwLock},
 };
 
 use anyhow::Result;
@@ -231,7 +232,7 @@ pub fn create_vm(
 }
 
 pub struct Vm {
-    vm: Arc<RwLock<Id<VZVirtualMachine>>>,
+    vm: Rc<RwLock<Id<VZVirtualMachine>>>,
     queue: Queue,
 }
 
@@ -243,7 +244,7 @@ impl Vm {
             }
         }
         let queue = Queue::create("com.akari.vm.queue", QueueAttribute::Serial);
-        let vm: Arc<RwLock<Id<VZVirtualMachine>>> = Arc::new(RwLock::new(unsafe {
+        let vm: Rc<RwLock<Id<VZVirtualMachine>>> = Rc::new(RwLock::new(unsafe {
             msg_send_id![VZVirtualMachine::alloc(), initWithConfiguration: config.as_ref(), queue: queue.ptr]
         }));
         let vm = Vm { vm, queue };
