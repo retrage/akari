@@ -81,6 +81,21 @@ fn create(
     Ok(thread)
 }
 
+fn delete(state_map: &mut VmStateMap, request: api::Request) -> Result<()> {
+    let state = state_map
+        .get_mut(&request.container_id)
+        .ok_or(anyhow::anyhow!("Container not found"))?;
+    match state.status {
+        api::VmStatus::Created | api::VmStatus::Stopped => {
+            state_map.remove(&request.container_id);
+        }
+        api::VmStatus::Creating => return Err(anyhow::anyhow!("Container still creating")),
+        api::VmStatus::Running => return Err(anyhow::anyhow!("Container still running")),
+    }
+
+    Ok(())
+}
+
 fn kill(state_map: &mut VmStateMap, request: api::Request) -> Result<()> {
     let state = state_map
         .get_mut(&request.container_id)
@@ -148,15 +163,19 @@ fn main() -> Result<()> {
     for stream in listener.incoming() {
         let mut stream = stream?;
         let request = api::Request::recv(&mut stream)?;
-        match request.command {
+        let result = match request.command {
             api::Command::Create => {
                 let thread = create(&mut state_map, request)?;
                 threads.push(thread);
+                Ok(())
             }
-            api::Command::Delete => todo!(),
-            api::Command::Kill => kill(&mut state_map, request)?,
-            api::Command::Start => start(&mut state_map, request)?,
-            api::Command::State => state(&mut stream, &state_map, request)?,
+            api::Command::Delete => delete(&mut state_map, request),
+            api::Command::Kill => kill(&mut state_map, request),
+            api::Command::Start => start(&mut state_map, request),
+            api::Command::State => state(&mut stream, &state_map, request),
+        };
+        if let Err(e) = result {
+            eprintln!("Error: {}", e);
         }
     }
 

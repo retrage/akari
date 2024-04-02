@@ -291,11 +291,14 @@ impl Vm {
                 }
             });
             unsafe {
-                println!("can stop: {:?}", vm_clone.read().unwrap().canStop());
-                vm_clone
-                    .write()
-                    .unwrap()
-                    .stopWithCompletionHandler(&completion_handler);
+                if vm_clone.read().expect("Failed to read lock").canStop() {
+                    vm_clone
+                        .write()
+                        .expect("Failed to write lock")
+                        .stopWithCompletionHandler(&completion_handler);
+                } else {
+                    panic!("VM cannot be stopped");
+                }
             }
         });
         self.queue.exec_block_async(&dispatch_block);
