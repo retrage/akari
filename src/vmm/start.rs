@@ -272,8 +272,8 @@ impl Vm {
             }
         });
         self.queue.exec_block_async(&dispatch_block);
-        let result = rx.recv()?;
-        result
+
+        rx.recv()?
     }
 
     pub fn kill(&self) -> Result<()> {
@@ -302,7 +302,7 @@ impl Vm {
             }
         });
         self.queue.exec_block_async(&dispatch_block);
-        let result = rx.recv()?;
-        result
+
+        rx.recv()?
     }
 }
