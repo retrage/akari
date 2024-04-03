@@ -7,7 +7,10 @@ use anyhow::Result;
 use liboci_cli::State;
 use serde::{Deserialize, Serialize};
 
-use crate::api;
+use crate::{
+    api,
+    traits::{ReadFrom, WriteTo},
+};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

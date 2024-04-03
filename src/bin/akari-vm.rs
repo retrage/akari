@@ -9,13 +9,17 @@ use std::{
     os::unix::net::{UnixListener, UnixStream},
     path::PathBuf,
     sync::mpsc,
+    thread,
 };
 
 use anyhow::Result;
 use clap::Parser;
 
-use akari::{api, vmm};
-use std::thread;
+use akari::{
+    api,
+    traits::{ReadFrom, WriteTo},
+    vmm,
+};
 
 #[derive(clap::Parser)]
 struct Opts {

@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
-use std::io::Write;
-
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+use crate::traits::{ReadFrom, WriteTo};
 use crate::vmm::config::MacosVmConfig;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -18,28 +16,8 @@ pub enum Command {
     State,
 }
 
-impl Command {
-    pub fn send(&self, writer: &mut impl Write) -> Result<()> {
-        writer.write_all(serde_json::to_string(self)?.as_bytes())?;
-        writer.write_all(b"\0")?;
-        writer.flush()?;
-        Ok(())
-    }
-
-    pub fn recv(reader: &mut impl std::io::Read) -> Result<Self> {
-        let mut buf = Vec::new();
-        loop {
-            let mut byte = [0];
-            reader.read_exact(&mut byte)?;
-            if byte[0] == b'\0' {
-                break;
-            }
-            buf.push(byte[0]);
-        }
-        let response: Self = serde_json::from_slice(&buf)?;
-        Ok(response)
-    }
-}
+impl WriteTo for Command {}
+impl ReadFrom for Command {}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,28 +37,8 @@ pub struct Request {
     pub vm_config: Option<MacosVmConfig>,
 }
 
-impl Request {
-    pub fn send(&self, writer: &mut impl Write) -> Result<()> {
-        writer.write_all(serde_json::to_string(self)?.as_bytes())?;
-        writer.write_all(b"\0")?;
-        writer.flush()?;
-        Ok(())
-    }
-
-    pub fn recv(reader: &mut impl std::io::Read) -> Result<Self> {
-        let mut buf = Vec::new();
-        loop {
-            let mut byte = [0];
-            reader.read_exact(&mut byte)?;
-            if byte[0] == b'\0' {
-                break;
-            }
-            buf.push(byte[0]);
-        }
-        let request: Self = serde_json::from_slice(&buf)?;
-        Ok(request)
-    }
-}
+impl WriteTo for Request {}
+impl ReadFrom for Request {}
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -91,25 +49,5 @@ pub struct Response {
     pub config: MacosVmConfig,
 }
 
-impl Response {
-    pub fn send(&self, writer: &mut impl Write) -> Result<()> {
-        writer.write_all(serde_json::to_string(self)?.as_bytes())?;
-        writer.write_all(b"\0")?;
-        writer.flush()?;
-        Ok(())
-    }
-
-    pub fn recv(reader: &mut impl std::io::Read) -> Result<Self> {
-        let mut buf = Vec::new();
-        loop {
-            let mut byte = [0];
-            reader.read_exact(&mut byte)?;
-            if byte[0] == b'\0' {
-                break;
-            }
-            buf.push(byte[0]);
-        }
-        let response: Self = serde_json::from_slice(&buf)?;
-        Ok(response)
-    }
-}
+impl WriteTo for Response {}
+impl ReadFrom for Response {}

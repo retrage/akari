@@ -6,7 +6,7 @@ use std::{os::unix::net::UnixStream, path::PathBuf};
 use anyhow::Result;
 use liboci_cli::Create;
 
-use crate::{api, vmm};
+use crate::{api, traits::WriteTo, vmm};
 
 pub fn create(args: Create, root_path: PathBuf, vmm_sock: &mut UnixStream) -> Result<()> {
     let vm_config_path = root_path.join(format!("{}.json", args.container_id));
