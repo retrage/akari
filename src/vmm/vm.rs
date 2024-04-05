@@ -19,7 +19,7 @@ use objc2::{msg_send_id, rc::Id, ClassType};
 
 use base64::prelude::*;
 
-use super::config::MacosVmConfig;
+use super::api::MacosVmConfig;
 
 unsafe fn create_mac_platform_config(
     vm_config: &MacosVmConfig,

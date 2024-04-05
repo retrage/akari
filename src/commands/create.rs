@@ -16,7 +16,7 @@ pub fn create(args: Create, root_path: PathBuf, vmm_sock: &mut UnixStream) -> Re
 
     // Open base vm config in root_path
     let base_vm_config_path = root_path.join("vm.json.base");
-    let mut vm_config = vmm::config::load_vm_config(&base_vm_config_path)?;
+    let mut vm_config = vmm::api::load_vm_config(&base_vm_config_path)?;
 
     assert!(vm_config.shares.is_none());
 
@@ -32,7 +32,7 @@ pub fn create(args: Create, root_path: PathBuf, vmm_sock: &mut UnixStream) -> Re
         } else {
             root.path().canonicalize()?
         };
-        let rootfs = vmm::config::MacosVmSharedDirectory {
+        let rootfs = vmm::api::MacosVmSharedDirectory {
             path: root_path,
             automount: true,
             read_only: root.readonly().unwrap_or(false),
@@ -44,7 +44,7 @@ pub fn create(args: Create, root_path: PathBuf, vmm_sock: &mut UnixStream) -> Re
 
     // Handle console_socket
     if let Some(console_socket) = args.console_socket {
-        let serial = vmm::config::MacosVmSerial {
+        let serial = vmm::api::MacosVmSerial {
             path: console_socket,
         };
         vm_config.serial = Some(serial);

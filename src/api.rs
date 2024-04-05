@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::traits::{ReadFrom, WriteTo};
-use crate::vmm::config::MacosVmConfig;
+use crate::vmm::api::MacosVmConfig;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

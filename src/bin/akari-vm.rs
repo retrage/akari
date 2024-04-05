@@ -27,7 +27,7 @@ struct Opts {
 }
 
 struct VmState {
-    config: vmm::config::MacosVmConfig,
+    config: vmm::api::MacosVmConfig,
     status: api::VmStatus,
 }
 
@@ -60,8 +60,8 @@ fn create(
             None => None,
         };
 
-        let config = vmm::start::create_vm(vm_config, &serial_sock)?;
-        let vm = vmm::start::Vm::new(config.clone())?;
+        let config = vmm::vm::create_vm(vm_config, &serial_sock)?;
+        let vm = vmm::vm::Vm::new(config.clone())?;
         tx.send(api::VmStatus::Created)?;
 
         let cmd_listener = UnixListener::bind("/tmp/cmd.sock")?;
