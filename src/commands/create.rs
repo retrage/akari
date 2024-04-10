@@ -26,21 +26,24 @@ pub fn create(args: Create, root_path: PathBuf, vmm_sock: &mut UnixStream) -> Re
     }
     let spec: oci_spec::runtime::Spec = serde_json::from_str(&std::fs::read_to_string(spec_path)?)?;
 
-    if let Some(root) = spec.root() {
+    let (root_path, read_only) = if let Some(root) = spec.root() {
         let root_path = if root.path().is_relative() {
             args.bundle.join(root.path()).canonicalize()?
         } else {
             root.path().canonicalize()?
         };
-        let rootfs = vmm::api::MacosVmSharedDirectory {
-            path: root_path,
-            automount: true,
-            read_only: root.readonly().unwrap_or(false),
-        };
-        vm_config.shares = Some(vec![rootfs]);
+        let read_only = root.readonly().unwrap_or(false);
+        (root_path, read_only)
     } else {
         return Err(anyhow::anyhow!("Root path is not specified"));
-    }
+    };
+
+    let rootfs = vmm::api::MacosVmSharedDirectory {
+        path: root_path.clone(),
+        automount: true,
+        read_only,
+    };
+    vm_config.shares = Some(vec![rootfs]);
 
     // Handle console_socket
     if let Some(console_socket) = args.console_socket {
@@ -60,6 +63,7 @@ pub fn create(args: Create, root_path: PathBuf, vmm_sock: &mut UnixStream) -> Re
         container_id: args.container_id.clone(),
         command: api::Command::Create,
         vm_config: Some(vm_config.clone()),
+        bundle: Some(root_path.clone()),
     };
 
     request.send(vmm_sock)?;

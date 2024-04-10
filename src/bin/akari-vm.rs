@@ -28,6 +28,7 @@ struct Opts {
 
 struct VmState {
     config: vmm::api::MacosVmConfig,
+    bundle: PathBuf,
     status: api::VmStatus,
 }
 
@@ -48,6 +49,7 @@ fn create(
 
     let state = VmState {
         config: vm_config.clone(),
+        bundle: request.bundle.expect("Bundle path not provided"),
         status: api::VmStatus::Creating,
     };
 
@@ -148,6 +150,7 @@ fn state(stream: &mut UnixStream, state_map: &VmStateMap, request: api::Request)
         status: state.status.clone(),
         pid: None,
         config: state.config.clone(),
+        bundle: state.bundle.clone(),
     };
 
     response.send(stream)?;

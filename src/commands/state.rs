@@ -25,6 +25,17 @@ enum ContainerStatus {
     Stopped,
 }
 
+impl From<api::VmStatus> for ContainerStatus {
+    fn from(status: api::VmStatus) -> Self {
+        match status {
+            api::VmStatus::Creating => ContainerStatus::Creating,
+            api::VmStatus::Created => ContainerStatus::Created,
+            api::VmStatus::Running => ContainerStatus::Running,
+            api::VmStatus::Stopped => ContainerStatus::Stopped,
+        }
+    }
+}
+
 /// OCI runtime state
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -63,27 +74,14 @@ pub fn state(args: State, _root_path: PathBuf, vmm_sock: &mut UnixStream) -> Res
         container_id: args.container_id.clone(),
         command: api::Command::State,
         vm_config: None,
+        bundle: None,
     };
     request.send(vmm_sock)?;
 
     let response = api::Response::recv(vmm_sock)?;
 
-    let status = match response.status {
-        api::VmStatus::Created => ContainerStatus::Created,
-        api::VmStatus::Running => ContainerStatus::Running,
-        api::VmStatus::Stopped => ContainerStatus::Stopped,
-        _ => ContainerStatus::Creating,
-    };
-
-    // TODO
-    let bundle = response
-        .config
-        .shares
-        .unwrap()
-        .first()
-        .unwrap()
-        .path
-        .clone();
+    let status = ContainerStatus::from(response.status);
+    let bundle = response.bundle;
 
     let mut state = ContainerState::new(args.container_id, status, bundle);
     state.pid = response.pid;

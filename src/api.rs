@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
+use std::path::PathBuf;
+
 use serde::{Deserialize, Serialize};
 
 use crate::traits::{ReadFrom, WriteTo};
@@ -35,6 +37,8 @@ pub struct Request {
     pub command: Command,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub vm_config: Option<MacosVmConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bundle: Option<PathBuf>,
 }
 
 impl WriteTo for Request {}
@@ -47,6 +51,7 @@ pub struct Response {
     pub status: VmStatus,
     pub pid: Option<i32>,
     pub config: MacosVmConfig,
+    pub bundle: PathBuf,
 }
 
 impl WriteTo for Response {}

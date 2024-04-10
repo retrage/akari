@@ -13,6 +13,7 @@ pub fn start(args: Start, _root_path: PathBuf, vmm_sock: &mut UnixStream) -> Res
         container_id: args.container_id.clone(),
         command: api::Command::Start,
         vm_config: None,
+        bundle: None,
     };
 
     request.send(vmm_sock)?;

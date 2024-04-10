@@ -13,6 +13,7 @@ pub fn delete(args: Delete, _root_path: PathBuf, vmm_sock: &mut UnixStream) -> R
         container_id: args.container_id.clone(),
         command: api::Command::Delete,
         vm_config: None,
+        bundle: None,
     };
 
     request.send(vmm_sock)?;
