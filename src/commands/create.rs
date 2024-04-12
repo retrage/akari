@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
-use std::{os::unix::net::UnixStream, path::PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use liboci_cli::Create;
+use tarpc::context;
 
-use crate::{api, traits::WriteTo, vmm};
+use crate::{api::ApiClient, vmm};
 
-pub fn create(args: Create, root_path: PathBuf, vmm_sock: &mut UnixStream) -> Result<()> {
+pub async fn create(args: Create, root_path: PathBuf, client: &ApiClient) -> Result<()> {
     let vm_config_path = root_path.join(format!("{}.json", args.container_id));
     if vm_config_path.exists() {
         return Err(anyhow::anyhow!("VM configuration already exists"));
@@ -59,14 +60,9 @@ pub fn create(args: Create, root_path: PathBuf, vmm_sock: &mut UnixStream) -> Re
 
     // TODO: Support pid_file
 
-    let request = api::Request {
-        container_id: args.container_id.clone(),
-        command: api::Command::Create,
-        vm_config: Some(vm_config.clone()),
-        bundle: Some(root_path.clone()),
-    };
-
-    request.send(vmm_sock)?;
+    client
+        .create(context::current(), args.container_id, vm_config, root_path)
+        .await?;
 
     Ok(())
 }

@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
-use std::{os::unix::net::UnixStream, path::PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
 use liboci_cli::StandardCmd;
 
-use akari::commands::{create, delete, kill, spec, start, state};
+use akari::{
+    api,
+    commands::{create, delete, kill, spec, start, state},
+};
+use tarpc::{serde_transport, tokio_serde::formats::Json};
 
 #[derive(clap::Parser, Debug)]
 pub enum CommonCmd {
@@ -55,7 +59,8 @@ enum SubCommand {
     Common(Box<CommonCmd>),
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let opts = Opts::parse();
 
     let root_path = match opts.global.root {
@@ -77,18 +82,21 @@ fn main() -> Result<()> {
         default_vmm_sock_path
     });
 
-    let mut vmm_sock = UnixStream::connect(vmm_sock_path)?;
+    let transport = serde_transport::unix::connect(vmm_sock_path, Json::default);
+    let client = api::ApiClient::new(tarpc::client::Config::default(), transport.await?).spawn();
 
     match opts.subcmd {
         SubCommand::Standard(cmd) => match *cmd {
-            StandardCmd::Create(create) => create::create(create, root_path, &mut vmm_sock),
-            StandardCmd::Start(start) => start::start(start, root_path, &mut vmm_sock),
-            StandardCmd::Kill(kill) => kill::kill(kill, root_path, &mut vmm_sock),
-            StandardCmd::Delete(delete) => delete::delete(delete, root_path, &mut vmm_sock),
-            StandardCmd::State(state) => state::state(state, root_path, &mut vmm_sock),
+            StandardCmd::Create(create) => create::create(create, root_path, &client).await?,
+            StandardCmd::Delete(delete) => delete::delete(delete, root_path, &client).await?,
+            StandardCmd::Start(start) => start::start(start, root_path, &client).await?,
+            StandardCmd::Kill(kill) => kill::kill(kill, root_path, &client).await?,
+            StandardCmd::State(state) => state::state(state, root_path, &client).await?,
         },
         SubCommand::Common(cmd) => match *cmd {
-            CommonCmd::Spec(spec) => spec::spec(spec),
+            CommonCmd::Spec(spec) => spec::spec(spec)?,
         },
-    }
+    };
+
+    Ok(())
 }

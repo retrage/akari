@@ -1,21 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
-use std::{os::unix::net::UnixStream, path::PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use liboci_cli::Kill;
+use tarpc::context;
 
-use crate::{api, traits::WriteTo};
+use crate::api::ApiClient;
 
-pub fn kill(args: Kill, _root_path: PathBuf, vmm_sock: &mut UnixStream) -> Result<()> {
-    let request = api::Request {
-        container_id: args.container_id.clone(),
-        command: api::Command::Kill,
-        vm_config: None,
-        bundle: None,
-    };
+pub async fn kill(args: Kill, _root_path: PathBuf, client: &ApiClient) -> Result<()> {
+    client.kill(context::current(), args.container_id).await?;
 
-    request.send(vmm_sock)?;
     Ok(())
 }

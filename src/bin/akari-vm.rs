@@ -6,9 +6,10 @@
 
 use std::{
     collections::HashMap,
+    future::Future,
     os::unix::net::{UnixListener, UnixStream},
     path::PathBuf,
-    sync::mpsc,
+    sync::{mpsc, Arc, RwLock},
     thread,
 };
 
@@ -16,9 +17,15 @@ use anyhow::Result;
 use clap::Parser;
 
 use akari::{
-    api,
+    api::{self, Api, Response},
     traits::{ReadFrom, WriteTo},
-    vmm,
+    vmm::{self, api::MacosVmConfig},
+};
+use futures::{future, stream::StreamExt};
+use tarpc::{
+    serde_transport,
+    server::{self, Channel},
+    tokio_serde::formats::Json,
 };
 
 #[derive(clap::Parser)]
@@ -26,6 +33,7 @@ struct Opts {
     socket: PathBuf,
 }
 
+#[derive(Clone, Debug)]
 struct VmState {
     config: vmm::api::MacosVmConfig,
     bundle: PathBuf,
@@ -34,157 +42,171 @@ struct VmState {
 
 type VmStateMap = HashMap<String, VmState>;
 
-fn create(
-    state_map: &mut VmStateMap,
-    request: api::Request,
-) -> Result<thread::JoinHandle<Result<()>>> {
-    let vm_config = match request.vm_config {
-        Some(config) => config,
-        None => return Err(anyhow::anyhow!("No VM config provided")),
-    };
+#[derive(Clone)]
+struct ApiServer {
+    state_map: Arc<RwLock<VmStateMap>>,
+    threads: Arc<RwLock<Vec<thread::JoinHandle<Result<()>>>>>,
+}
 
-    if state_map.contains_key(&request.container_id) {
-        return Err(anyhow::anyhow!("Container already exists"));
-    }
+impl Api for ApiServer {
+    async fn create(
+        self,
+        _context: ::tarpc::context::Context,
+        container_id: String,
+        vm_config: MacosVmConfig,
+        bundle: PathBuf,
+    ) {
+        let mut state_map = self.state_map.write().expect("Lock poisoned");
 
-    let state = VmState {
-        config: vm_config.clone(),
-        bundle: request.bundle.expect("Bundle path not provided"),
-        status: api::VmStatus::Creating,
-    };
+        if state_map.contains_key(&container_id) {
+            panic!("Container already exists");
+        }
 
-    state_map.insert(request.container_id.clone(), state);
-
-    let (tx, rx) = mpsc::channel::<api::VmStatus>();
-    let thread = thread::spawn(move || -> Result<()> {
-        let serial_sock = match &vm_config.serial {
-            Some(serial) => Some(UnixStream::connect(&serial.path)?),
-            None => None,
+        let state = VmState {
+            config: vm_config.clone(),
+            bundle,
+            status: api::VmStatus::Creating,
         };
 
-        let config = vmm::vm::create_vm(vm_config, &serial_sock)?;
-        let vm = vmm::vm::Vm::new(config.clone())?;
-        tx.send(api::VmStatus::Created)?;
+        state_map.insert(container_id.clone(), state);
 
-        let cmd_listener = UnixListener::bind("/tmp/cmd.sock")?;
-        for stream in cmd_listener.incoming() {
-            let mut stream = stream?;
-            let cmd = api::Command::recv(&mut stream)?;
-            match cmd {
-                api::Command::Start => vm.start()?,
-                api::Command::Kill => vm.kill()?,
-                _ => todo!(),
+        let (tx, rx) = mpsc::channel::<api::VmStatus>();
+        let thread = thread::spawn(move || -> Result<()> {
+            let serial_sock = match &vm_config.serial {
+                Some(serial) => Some(UnixStream::connect(&serial.path)?),
+                None => None,
+            };
+
+            let config = vmm::vm::create_vm(vm_config, &serial_sock)?;
+            let vm = vmm::vm::Vm::new(config.clone())?;
+            tx.send(api::VmStatus::Created)?;
+
+            let cmd_listener = UnixListener::bind("/tmp/cmd.sock")?;
+            for stream in cmd_listener.incoming() {
+                let mut stream = stream?;
+                let cmd = api::Command::recv(&mut stream)?;
+                match cmd {
+                    api::Command::Start => vm.start()?,
+                    api::Command::Kill => vm.kill()?,
+                    _ => todo!(),
+                }
             }
-        }
-        Ok(())
-    });
+            Ok(())
+        });
 
-    state_map
-        .get_mut(&request.container_id)
-        .ok_or(anyhow::anyhow!("Container not found"))?
-        .status = rx.recv()?;
+        self.threads.write().expect("Lock poisoned").push(thread);
 
-    Ok(thread)
-}
-
-fn delete(state_map: &mut VmStateMap, request: api::Request) -> Result<()> {
-    let state = state_map
-        .get_mut(&request.container_id)
-        .ok_or(anyhow::anyhow!("Container not found"))?;
-    match state.status {
-        api::VmStatus::Created | api::VmStatus::Stopped => {
-            state_map.remove(&request.container_id);
-        }
-        api::VmStatus::Creating => return Err(anyhow::anyhow!("Container still creating")),
-        api::VmStatus::Running => return Err(anyhow::anyhow!("Container still running")),
+        state_map
+            .get_mut(&container_id.clone())
+            .ok_or(anyhow::anyhow!("Container not found"))
+            .expect("Container not found")
+            .status = rx.recv().expect("Failed to receive status");
     }
 
-    Ok(())
-}
+    async fn delete(self, _context: ::tarpc::context::Context, container_id: String) {
+        let mut state_map = self.state_map.write().expect("Lock poisoned");
+        let state = state_map
+            .get_mut(&container_id)
+            .ok_or(anyhow::anyhow!("Container not found"))
+            .expect("Container not found");
 
-fn kill(state_map: &mut VmStateMap, request: api::Request) -> Result<()> {
-    let state = state_map
-        .get_mut(&request.container_id)
-        .ok_or(anyhow::anyhow!("Container not found"))?;
-    match state.status {
-        api::VmStatus::Created | api::VmStatus::Running => {
-            let mut cmd_sock = UnixStream::connect("/tmp/cmd.sock")?;
-            let cmd = api::Command::Kill;
-            cmd.send(&mut cmd_sock)?;
-
-            state.status = api::VmStatus::Stopped;
-        }
-        api::VmStatus::Stopped => return Err(anyhow::anyhow!("Container already stopped")),
-        _ => return Err(anyhow::anyhow!("Container not created")),
-    }
-
-    Ok(())
-}
-
-fn start(state_map: &mut VmStateMap, request: api::Request) -> Result<()> {
-    let state = state_map
-        .get_mut(&request.container_id)
-        .ok_or(anyhow::anyhow!("Container not found"))?;
-    match state.status {
-        api::VmStatus::Created => {
-            let mut cmd_sock = UnixStream::connect("/tmp/cmd.sock")?;
-            let cmd = api::Command::Start;
-            cmd.send(&mut cmd_sock)?;
-
-            state.status = api::VmStatus::Running;
-        }
-        api::VmStatus::Running => return Err(anyhow::anyhow!("Container already running")),
-        _ => return Err(anyhow::anyhow!("Container not created")),
-    }
-
-    Ok(())
-}
-
-fn state(stream: &mut UnixStream, state_map: &VmStateMap, request: api::Request) -> Result<()> {
-    let state = state_map
-        .get(&request.container_id)
-        .ok_or(anyhow::anyhow!("Container not found"))?;
-
-    let response = api::Response {
-        container_id: request.container_id,
-        status: state.status.clone(),
-        pid: None,
-        config: state.config.clone(),
-        bundle: state.bundle.clone(),
-    };
-
-    response.send(stream)?;
-
-    Ok(())
-}
-
-fn main() -> Result<()> {
-    let opts = Opts::parse();
-
-    let mut state_map = VmStateMap::new();
-
-    let listener = UnixListener::bind(opts.socket)?;
-
-    let mut threads = Vec::new();
-
-    for stream in listener.incoming() {
-        let mut stream = stream?;
-        let request = api::Request::recv(&mut stream)?;
-        let result = match request.command {
-            api::Command::Create => {
-                let thread = create(&mut state_map, request)?;
-                threads.push(thread);
+        let _result = match state.status {
+            api::VmStatus::Created | api::VmStatus::Stopped => {
+                state_map.remove(&container_id);
                 Ok(())
             }
-            api::Command::Delete => delete(&mut state_map, request),
-            api::Command::Kill => kill(&mut state_map, request),
-            api::Command::Start => start(&mut state_map, request),
-            api::Command::State => state(&mut stream, &state_map, request),
+            api::VmStatus::Creating => Err(anyhow::anyhow!("Container still creating")),
+            api::VmStatus::Running => Err(anyhow::anyhow!("Container still running")),
         };
-        if let Err(e) = result {
-            eprintln!("Error: {}", e);
+    }
+
+    async fn kill(self, _context: ::tarpc::context::Context, container_id: String) {
+        let mut state_map = self.state_map.write().expect("Lock poisoned");
+        let state = state_map
+            .get_mut(&container_id)
+            .ok_or(anyhow::anyhow!("Container not found"))
+            .expect("Container not found");
+
+        let _result = match state.status {
+            api::VmStatus::Created | api::VmStatus::Running => {
+                let mut cmd_sock = UnixStream::connect("/tmp/cmd.sock").expect("Failed to connect");
+                let cmd = api::Command::Kill;
+                cmd.send(&mut cmd_sock).expect("Failed to send command");
+
+                state.status = api::VmStatus::Stopped;
+                Ok(())
+            }
+            api::VmStatus::Stopped => Err(anyhow::anyhow!("Container already stopped")),
+            _ => Err(anyhow::anyhow!("Container not created")),
+        };
+    }
+
+    async fn start(self, _context: ::tarpc::context::Context, container_id: String) {
+        let mut state_map = self.state_map.write().expect("Lock poisoned");
+        let state = state_map
+            .get_mut(&container_id)
+            .ok_or(anyhow::anyhow!("Container not found"))
+            .expect("Container not found");
+
+        let _result = match state.status {
+            api::VmStatus::Created => {
+                let mut cmd_sock = UnixStream::connect("/tmp/cmd.sock").expect("Failed to connect");
+                let cmd = api::Command::Start;
+                cmd.send(&mut cmd_sock).expect("Failed to send command");
+
+                state.status = api::VmStatus::Running;
+                Ok(())
+            }
+            api::VmStatus::Running => Err(anyhow::anyhow!("Container already running")),
+            _ => Err(anyhow::anyhow!("Container not created")),
+        };
+    }
+
+    async fn state(self, _context: ::tarpc::context::Context, container_id: String) -> Response {
+        let state_map = self.state_map.read().expect("Lock poisoned");
+        let state = state_map
+            .get(&container_id)
+            .ok_or(anyhow::anyhow!("Container not found"))
+            .expect("Container not found");
+
+        api::Response {
+            container_id,
+            status: state.status.clone(),
+            pid: None,
+            config: state.config.clone(),
+            bundle: state.bundle.clone(),
         }
     }
+}
+
+async fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
+    tokio::spawn(fut);
+}
+
+#[tokio::main]
+
+async fn main() -> Result<()> {
+    let opts = Opts::parse();
+
+    let mut listener = serde_transport::unix::listen(opts.socket, Json::default).await?;
+    listener.config_mut().max_frame_length(usize::MAX);
+
+    let state_map = Arc::new(RwLock::new(HashMap::new()));
+
+    let threads = Arc::new(RwLock::new(Vec::new()));
+
+    listener
+        .filter_map(|r| future::ready(r.ok()))
+        .map(server::BaseChannel::with_defaults)
+        .map(|channel| {
+            let state_map = state_map.clone();
+            let threads = threads.clone();
+            let server = ApiServer { state_map, threads };
+            channel.execute(server.serve()).for_each(spawn)
+        })
+        .buffer_unordered(10)
+        .for_each(|_| async {})
+        .await;
 
     Ok(())
 }

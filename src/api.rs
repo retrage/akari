@@ -30,7 +30,7 @@ pub enum VmStatus {
     Stopped,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Request {
     pub container_id: String,
@@ -44,7 +44,7 @@ pub struct Request {
 impl WriteTo for Request {}
 impl ReadFrom for Request {}
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Response {
     pub container_id: String,
@@ -56,3 +56,12 @@ pub struct Response {
 
 impl WriteTo for Response {}
 impl ReadFrom for Response {}
+
+#[tarpc::service]
+pub trait Api {
+    async fn create(container_id: String, vm_config: MacosVmConfig, bundle: PathBuf);
+    async fn delete(container_id: String);
+    async fn kill(container_id: String);
+    async fn start(container_id: String);
+    async fn state(container_id: String) -> Response;
+}

@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
-use std::{collections::HashMap, os::unix::net::UnixStream, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::Result;
 use liboci_cli::State;
 use serde::{Deserialize, Serialize};
+use tarpc::context;
 
-use crate::{
-    api,
-    traits::{ReadFrom, WriteTo},
-};
+use crate::api::{self, ApiClient};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -69,21 +67,13 @@ impl ContainerState {
     }
 }
 
-pub fn state(args: State, _root_path: PathBuf, vmm_sock: &mut UnixStream) -> Result<()> {
-    let request = api::Request {
-        container_id: args.container_id.clone(),
-        command: api::Command::State,
-        vm_config: None,
-        bundle: None,
-    };
-    request.send(vmm_sock)?;
-
-    let response = api::Response::recv(vmm_sock)?;
+pub async fn state(args: State, _root_path: PathBuf, client: &ApiClient) -> Result<()> {
+    let response = client.state(context::current(), args.container_id).await?;
 
     let status = ContainerStatus::from(response.status);
     let bundle = response.bundle;
 
-    let mut state = ContainerState::new(args.container_id, status, bundle);
+    let mut state = ContainerState::new(response.container_id, status, bundle);
     state.pid = response.pid;
 
     println!("{}", serde_json::to_string_pretty(&state)?);
