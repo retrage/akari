@@ -7,12 +7,12 @@
 use std::{
     collections::HashMap,
     future::Future,
-    os::unix::{
-        fs::FileTypeExt,
-        net::{UnixListener, UnixStream},
-    },
+    os::unix::{fs::FileTypeExt, net::UnixStream},
     path::PathBuf,
-    sync::{mpsc, Arc, RwLock},
+    sync::{
+        mpsc::{self, Sender},
+        Arc, RwLock,
+    },
     thread,
 };
 
@@ -20,9 +20,8 @@ use anyhow::Result;
 use clap::Parser;
 
 use akari::{
-    api::{self, BackendApi, Response},
+    api::{self, BackendApi, Command, Response},
     path::{root_path, vmm_sock_path},
-    traits::{ReadFrom, WriteTo},
     vmm::{self, api::MacosVmConfig},
 };
 use futures::{future, stream::StreamExt};
@@ -42,11 +41,17 @@ struct Opts {
     vmm_sock: Option<PathBuf>,
 }
 
-#[derive(Clone, Debug)]
+type VmThread = thread::JoinHandle<Result<()>>;
+type VmThreadTx = Sender<Command>;
+
+#[derive(Debug)]
 struct VmState {
     config: vmm::api::MacosVmConfig,
     bundle: PathBuf,
     status: api::VmStatus,
+
+    thread: Option<VmThread>,
+    tx: Option<VmThreadTx>,
 }
 
 type VmStateMap = HashMap<String, VmState>;
@@ -54,7 +59,6 @@ type VmStateMap = HashMap<String, VmState>;
 #[derive(Clone)]
 struct ApiServer {
     state_map: Arc<RwLock<VmStateMap>>,
-    threads: Arc<RwLock<Vec<thread::JoinHandle<Result<()>>>>>,
 }
 
 impl BackendApi for ApiServer {
@@ -75,11 +79,14 @@ impl BackendApi for ApiServer {
             config: vm_config.clone(),
             bundle,
             status: api::VmStatus::Creating,
+            thread: None,
+            tx: None,
         };
 
         state_map.insert(container_id.clone(), state);
 
         let (tx, rx) = mpsc::channel::<api::VmStatus>();
+        let (cmd_tx, cmd_rx) = mpsc::channel::<api::Command>();
         let thread = thread::spawn(move || -> Result<()> {
             let serial_sock = match &vm_config.serial {
                 Some(serial) => Some(UnixStream::connect(&serial.path)?),
@@ -90,25 +97,25 @@ impl BackendApi for ApiServer {
             let vm = vmm::vm::Vm::new(config.clone())?;
             tx.send(api::VmStatus::Created)?;
 
-            let cmd_listener = UnixListener::bind("/tmp/cmd.sock")?;
-            for stream in cmd_listener.incoming() {
-                let mut stream = stream?;
-                let cmd = api::Command::recv(&mut stream)?;
+            loop {
+                let cmd = cmd_rx.recv()?;
                 match cmd {
                     api::Command::Start => vm.start()?,
                     api::Command::Kill => vm.kill()?,
-                    _ => todo!(),
+                    _ => break, // TODO
                 }
             }
             Ok(())
         });
 
-        self.threads.write().expect("Lock poisoned").push(thread);
-
-        state_map
-            .get_mut(&container_id.clone())
-            .expect("Container not found")
-            .status = rx.recv().expect("Failed to receive status");
+        if let Ok(status) = rx.recv() {
+            let state = state_map
+                .get_mut(&container_id.clone())
+                .expect("Container not found");
+            state.status = status;
+            state.thread = Some(thread);
+            state.tx = Some(cmd_tx);
+        }
     }
 
     async fn delete(self, _context: ::tarpc::context::Context, container_id: String) {
@@ -135,10 +142,12 @@ impl BackendApi for ApiServer {
 
         let _result = match state.status {
             api::VmStatus::Created | api::VmStatus::Running => {
-                let mut cmd_sock = UnixStream::connect("/tmp/cmd.sock").expect("Failed to connect");
-                let cmd = api::Command::Kill;
-                cmd.send(&mut cmd_sock).expect("Failed to send command");
-
+                state
+                    .tx
+                    .as_ref()
+                    .expect("Thread not found")
+                    .send(api::Command::Kill)
+                    .expect("Failed to send kill command");
                 state.status = api::VmStatus::Stopped;
                 Ok(())
             }
@@ -155,10 +164,12 @@ impl BackendApi for ApiServer {
 
         let _result = match state.status {
             api::VmStatus::Created => {
-                let mut cmd_sock = UnixStream::connect("/tmp/cmd.sock").expect("Failed to connect");
-                let cmd = api::Command::Start;
-                cmd.send(&mut cmd_sock).expect("Failed to send command");
-
+                state
+                    .tx
+                    .as_ref()
+                    .expect("Thread not found")
+                    .send(api::Command::Start)
+                    .expect("Failed to send kill command");
                 state.status = api::VmStatus::Running;
                 Ok(())
             }
@@ -214,15 +225,12 @@ async fn main() -> Result<()> {
 
     let state_map = Arc::new(RwLock::new(HashMap::new()));
 
-    let threads = Arc::new(RwLock::new(Vec::new()));
-
     listener
         .filter_map(|r| future::ready(r.ok()))
         .map(server::BaseChannel::with_defaults)
         .map(|channel| {
             let state_map = state_map.clone();
-            let threads = threads.clone();
-            let server = ApiServer { state_map, threads };
+            let server = ApiServer { state_map };
             channel.execute(server.serve()).for_each(spawn)
         })
         .buffer_unordered(10)

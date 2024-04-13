@@ -5,7 +5,6 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::traits::{ReadFrom, WriteTo};
 use crate::vmm::api::MacosVmConfig;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -17,9 +16,6 @@ pub enum Command {
     Start,
     State,
 }
-
-impl WriteTo for Command {}
-impl ReadFrom for Command {}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
