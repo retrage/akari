@@ -13,7 +13,11 @@ liboci-cli = "0.3.2"
 oci-spec = "0.6.5"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
-tarpc = { version = "0.34.0", features = ["full"] }
+tarpc = { version = "0.34.0", features = [
+    "serde-transport",
+    "serde-transport-json",
+    "unix",
+] }
 tokio = { version = "1.37.0", features = ["macros", "net", "rt-multi-thread"] }
 
 icrate = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization", features = [
