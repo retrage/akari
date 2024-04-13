@@ -7,9 +7,9 @@ use anyhow::Result;
 use liboci_cli::Delete;
 use tarpc::context;
 
-use crate::api::BackendApiClient;
+use crate::api::ApiClient;
 
-pub async fn delete(args: Delete, _root_path: PathBuf, client: &BackendApiClient) -> Result<()> {
+pub async fn delete(args: Delete, _root_path: PathBuf, client: &ApiClient) -> Result<()> {
     client.delete(context::current(), args.container_id).await?;
 
     Ok(())

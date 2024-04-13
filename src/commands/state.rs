@@ -8,7 +8,7 @@ use liboci_cli::State;
 use serde::{Deserialize, Serialize};
 use tarpc::context;
 
-use crate::api::{self, BackendApiClient};
+use crate::api::{self, ApiClient};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -67,7 +67,7 @@ impl ContainerState {
     }
 }
 
-pub async fn state(args: State, _root_path: PathBuf, client: &BackendApiClient) -> Result<()> {
+pub async fn state(args: State, _root_path: PathBuf, client: &ApiClient) -> Result<()> {
     let response = client.state(context::current(), args.container_id).await?;
 
     let status = ContainerStatus::from(response.status);

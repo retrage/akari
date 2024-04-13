@@ -68,8 +68,7 @@ async fn main() -> Result<()> {
     let vmm_sock_path = vmm_sock_path(&root_path, opts.global.vmm_sock);
 
     let transport = serde_transport::unix::connect(vmm_sock_path, Json::default);
-    let client =
-        api::BackendApiClient::new(tarpc::client::Config::default(), transport.await?).spawn();
+    let client = api::ApiClient::new(tarpc::client::Config::default(), transport.await?).spawn();
 
     match opts.subcmd {
         SubCommand::Standard(cmd) => match *cmd {

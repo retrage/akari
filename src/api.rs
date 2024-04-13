@@ -48,7 +48,7 @@ pub struct Response {
 }
 
 #[tarpc::service]
-pub trait BackendApi {
+pub trait Api {
     async fn create(container_id: String, vm_config: MacosVmConfig, bundle: PathBuf);
     async fn delete(container_id: String);
     async fn kill(container_id: String);

@@ -20,7 +20,7 @@ use anyhow::Result;
 use clap::Parser;
 
 use akari::{
-    api::{self, BackendApi, Command, Response},
+    api::{self, Api, Command, Response},
     path::{root_path, vmm_sock_path},
     vmm::{self, api::MacosVmConfig},
 };
@@ -61,7 +61,7 @@ struct ApiServer {
     state_map: Arc<RwLock<VmStateMap>>,
 }
 
-impl BackendApi for ApiServer {
+impl Api for ApiServer {
     async fn create(
         self,
         _context: ::tarpc::context::Context,

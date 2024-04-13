@@ -7,9 +7,9 @@ use anyhow::Result;
 use liboci_cli::Start;
 use tarpc::context;
 
-use crate::api::BackendApiClient;
+use crate::api::ApiClient;
 
-pub async fn start(args: Start, _root_path: PathBuf, client: &BackendApiClient) -> Result<()> {
+pub async fn start(args: Start, _root_path: PathBuf, client: &ApiClient) -> Result<()> {
     client.start(context::current(), args.container_id).await?;
 
     Ok(())
