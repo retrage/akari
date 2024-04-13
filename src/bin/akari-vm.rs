@@ -7,7 +7,10 @@
 use std::{
     collections::HashMap,
     future::Future,
-    os::unix::net::{UnixListener, UnixStream},
+    os::unix::{
+        fs::FileTypeExt,
+        net::{UnixListener, UnixStream},
+    },
     path::PathBuf,
     sync::{mpsc, Arc, RwLock},
     thread,
@@ -189,6 +192,22 @@ async fn main() -> Result<()> {
 
     let root_path = root_path(opts.root)?;
     let vmm_sock_path = vmm_sock_path(&root_path, opts.vmm_sock);
+
+    match vmm_sock_path.try_exists() {
+        Ok(exist) => {
+            if exist {
+                let metadata = std::fs::metadata(&vmm_sock_path)?;
+                if metadata.file_type().is_socket() {
+                    std::fs::remove_file(&vmm_sock_path)?;
+                } else {
+                    anyhow::bail!("VMM socket path exists and is not a socket");
+                }
+            }
+        }
+        Err(e) => {
+            anyhow::bail!("Failed to check if VMM socket path exists: {}", e);
+        }
+    }
 
     let mut listener = serde_transport::unix::listen(vmm_sock_path, Json::default).await?;
     listener.config_mut().max_frame_length(usize::MAX);
