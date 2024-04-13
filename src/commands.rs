@@ -3,6 +3,7 @@
 
 pub mod create;
 pub mod delete;
+pub mod error;
 pub mod kill;
 pub mod spec;
 pub mod start;

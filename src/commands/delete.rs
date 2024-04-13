@@ -9,8 +9,14 @@ use tarpc::context;
 
 use crate::api::ApiClient;
 
-pub async fn delete(args: Delete, _root_path: PathBuf, client: &ApiClient) -> Result<()> {
-    client.delete(context::current(), args.container_id).await?;
+use super::error::Error;
+
+pub async fn delete(args: Delete, _root_path: PathBuf, client: &ApiClient) -> Result<(), Error> {
+    client
+        .delete(context::current(), args.container_id)
+        .await
+        .map_err(Error::RpcClientError)?
+        .map_err(Error::Api)?;
 
     Ok(())
 }

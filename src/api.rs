@@ -47,11 +47,31 @@ pub struct Response {
     pub bundle: PathBuf,
 }
 
+#[derive(thiserror::Error, Debug, Serialize, Deserialize)]
+pub enum Error {
+    #[error("Container already exists")]
+    ContainerAlreadyExists,
+    #[error("Container not found")]
+    ContainerNotFound,
+    #[error("Unpextected container status: {0:?}")]
+    UnpextectedContainerStatus(VmStatus),
+    #[error("Lock poisoned")]
+    LockPoisoned,
+    #[error("Thread not found")]
+    ThreadNotFound,
+    #[error("Failed to send command")]
+    VmCommandFailed,
+}
+
 #[tarpc::service]
 pub trait Api {
-    async fn create(container_id: String, vm_config: MacosVmConfig, bundle: PathBuf);
-    async fn delete(container_id: String);
-    async fn kill(container_id: String);
-    async fn start(container_id: String);
-    async fn state(container_id: String) -> Response;
+    async fn create(
+        container_id: String,
+        vm_config: MacosVmConfig,
+        bundle: PathBuf,
+    ) -> Result<(), Error>;
+    async fn delete(container_id: String) -> Result<(), Error>;
+    async fn kill(container_id: String) -> Result<(), Error>;
+    async fn start(container_id: String) -> Result<(), Error>;
+    async fn state(container_id: String) -> Result<Response, Error>;
 }

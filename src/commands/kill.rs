@@ -9,8 +9,14 @@ use tarpc::context;
 
 use crate::api::ApiClient;
 
-pub async fn kill(args: Kill, _root_path: PathBuf, client: &ApiClient) -> Result<()> {
-    client.kill(context::current(), args.container_id).await?;
+use super::error::Error;
+
+pub async fn kill(args: Kill, _root_path: PathBuf, client: &ApiClient) -> Result<(), Error> {
+    client
+        .kill(context::current(), args.container_id)
+        .await
+        .map_err(Error::RpcClientError)?
+        .map_err(Error::Api)?;
 
     Ok(())
 }

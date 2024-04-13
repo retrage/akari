@@ -68,11 +68,14 @@ impl Api for ApiServer {
         container_id: String,
         vm_config: MacosVmConfig,
         bundle: PathBuf,
-    ) {
-        let mut state_map = self.state_map.write().expect("Lock poisoned");
+    ) -> Result<(), api::Error> {
+        let mut state_map = self
+            .state_map
+            .write()
+            .map_err(|_| api::Error::LockPoisoned)?;
 
         if state_map.contains_key(&container_id) {
-            panic!("Container already exists");
+            return Err(api::Error::ContainerAlreadyExists);
         }
 
         let state = VmState {
@@ -111,84 +114,114 @@ impl Api for ApiServer {
         if let Ok(status) = rx.recv() {
             let state = state_map
                 .get_mut(&container_id.clone())
-                .expect("Container not found");
+                .ok_or(api::Error::ContainerNotFound)?;
             state.status = status;
             state.thread = Some(thread);
             state.tx = Some(cmd_tx);
         }
+
+        Ok(())
     }
 
-    async fn delete(self, _context: ::tarpc::context::Context, container_id: String) {
-        let mut state_map = self.state_map.write().expect("Lock poisoned");
+    async fn delete(
+        self,
+        _context: ::tarpc::context::Context,
+        container_id: String,
+    ) -> Result<(), api::Error> {
+        let mut state_map = self
+            .state_map
+            .write()
+            .map_err(|_| api::Error::LockPoisoned)?;
         let state = state_map
             .get_mut(&container_id)
-            .expect("Container not found");
+            .ok_or(api::Error::ContainerNotFound)?;
 
-        let _result = match state.status {
+        match state.status {
             api::VmStatus::Created | api::VmStatus::Stopped => {
                 state_map.remove(&container_id);
                 Ok(())
             }
-            api::VmStatus::Creating => Err(anyhow::anyhow!("Container still creating")),
-            api::VmStatus::Running => Err(anyhow::anyhow!("Container still running")),
-        };
+            _ => Err(api::Error::UnpextectedContainerStatus(state.status.clone())),
+        }
     }
 
-    async fn kill(self, _context: ::tarpc::context::Context, container_id: String) {
-        let mut state_map = self.state_map.write().expect("Lock poisoned");
+    async fn kill(
+        self,
+        _context: ::tarpc::context::Context,
+        container_id: String,
+    ) -> Result<(), api::Error> {
+        let mut state_map = self
+            .state_map
+            .write()
+            .map_err(|_| api::Error::LockPoisoned)?;
         let state = state_map
             .get_mut(&container_id)
-            .expect("Container not found");
+            .ok_or(api::Error::ContainerNotFound)?;
 
-        let _result = match state.status {
+        match state.status {
             api::VmStatus::Created | api::VmStatus::Running => {
                 state
                     .tx
                     .as_ref()
-                    .expect("Thread not found")
+                    .ok_or(api::Error::ThreadNotFound)?
                     .send(api::Command::Kill)
-                    .expect("Failed to send kill command");
+                    .map_err(|_| api::Error::VmCommandFailed)?;
                 state.status = api::VmStatus::Stopped;
                 Ok(())
             }
-            api::VmStatus::Stopped => Err(anyhow::anyhow!("Container already stopped")),
-            _ => Err(anyhow::anyhow!("Container not created")),
-        };
+            _ => Err(api::Error::UnpextectedContainerStatus(state.status.clone())),
+        }
     }
 
-    async fn start(self, _context: ::tarpc::context::Context, container_id: String) {
-        let mut state_map = self.state_map.write().expect("Lock poisoned");
+    async fn start(
+        self,
+        _context: ::tarpc::context::Context,
+        container_id: String,
+    ) -> Result<(), api::Error> {
+        let mut state_map = self
+            .state_map
+            .write()
+            .map_err(|_| api::Error::LockPoisoned)?;
         let state = state_map
             .get_mut(&container_id)
-            .expect("Container not found");
+            .ok_or(api::Error::ContainerNotFound)?;
 
-        let _result = match state.status {
+        match state.status {
             api::VmStatus::Created => {
                 state
                     .tx
                     .as_ref()
-                    .expect("Thread not found")
+                    .ok_or(api::Error::ThreadNotFound)?
                     .send(api::Command::Start)
-                    .expect("Failed to send kill command");
+                    .map_err(|_| api::Error::VmCommandFailed)?;
                 state.status = api::VmStatus::Running;
                 Ok(())
             }
-            api::VmStatus::Running => Err(anyhow::anyhow!("Container already running")),
-            _ => Err(anyhow::anyhow!("Container not created")),
-        };
+            _ => Err(api::Error::UnpextectedContainerStatus(state.status.clone())),
+        }
     }
 
-    async fn state(self, _context: ::tarpc::context::Context, container_id: String) -> Response {
-        let state_map = self.state_map.read().expect("Lock poisoned");
-        let state = state_map.get(&container_id).expect("Container not found");
+    async fn state(
+        self,
+        _context: ::tarpc::context::Context,
+        container_id: String,
+    ) -> Result<Response, api::Error> {
+        let state_map = self
+            .state_map
+            .read()
+            .map_err(|_| api::Error::LockPoisoned)?;
+        let state = state_map
+            .get(&container_id)
+            .ok_or(api::Error::ContainerNotFound)?;
 
-        api::Response {
+        let response = api::Response {
             container_id,
             status: state.status.clone(),
             pid: None,
             config: state.config.clone(),
             bundle: state.bundle.clone(),
-        }
+        };
+        Ok(response)
     }
 }
 

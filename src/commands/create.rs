@@ -9,23 +9,7 @@ use tarpc::context;
 
 use crate::{api::ApiClient, vmm};
 
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error("VM configuration already exists")]
-    VmConfigAlreadyExists,
-    #[error("Container configuration does not exist")]
-    ContainerConfigDoesNotExist,
-    #[error("Root path is not specified")]
-    RootPathIsNotSpecified,
-    #[error(transparent)]
-    VmmApiError(#[from] vmm::api::Error),
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
-    #[error(transparent)]
-    DeserializeError(#[from] serde_json::Error),
-    #[error(transparent)]
-    RpcClientError(#[from] tarpc::client::RpcError),
-}
+use super::error::Error;
 
 pub async fn create(args: Create, root_path: PathBuf, client: &ApiClient) -> Result<(), Error> {
     let vm_config_path = root_path.join(format!("{}.json", args.container_id));
@@ -80,7 +64,9 @@ pub async fn create(args: Create, root_path: PathBuf, client: &ApiClient) -> Res
 
     client
         .create(context::current(), args.container_id, vm_config, root_path)
-        .await?;
+        .await
+        .map_err(Error::RpcClientError)?
+        .map_err(Error::Api)?;
 
     Ok(())
 }

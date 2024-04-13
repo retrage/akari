@@ -10,6 +10,8 @@ use tarpc::context;
 
 use crate::api::{self, ApiClient};
 
+use super::error::Error;
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 enum ContainerStatus {
@@ -67,8 +69,12 @@ impl ContainerState {
     }
 }
 
-pub async fn state(args: State, _root_path: PathBuf, client: &ApiClient) -> Result<()> {
-    let response = client.state(context::current(), args.container_id).await?;
+pub async fn state(args: State, _root_path: PathBuf, client: &ApiClient) -> Result<(), Error> {
+    let response = client
+        .state(context::current(), args.container_id)
+        .await
+        .map_err(Error::RpcClientError)?
+        .map_err(Error::Api)?;
 
     let status = ContainerStatus::from(response.status);
     let bundle = response.bundle;
