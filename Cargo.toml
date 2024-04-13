@@ -19,6 +19,7 @@ tarpc = { version = "0.34.0", features = [
     "unix",
 ] }
 tokio = { version = "1.37.0", features = ["macros", "net", "rt-multi-thread"] }
+thiserror = "1.0.58"
 
 icrate = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization", features = [
     "AppKit",

@@ -9,10 +9,28 @@ use tarpc::context;
 
 use crate::{api::ApiClient, vmm};
 
-pub async fn create(args: Create, root_path: PathBuf, client: &ApiClient) -> Result<()> {
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("VM configuration already exists")]
+    VmConfigAlreadyExists,
+    #[error("Container configuration does not exist")]
+    ContainerConfigDoesNotExist,
+    #[error("Root path is not specified")]
+    RootPathIsNotSpecified,
+    #[error(transparent)]
+    VmmApiError(#[from] vmm::api::Error),
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+    #[error(transparent)]
+    DeserializeError(#[from] serde_json::Error),
+    #[error(transparent)]
+    RpcClientError(#[from] tarpc::client::RpcError),
+}
+
+pub async fn create(args: Create, root_path: PathBuf, client: &ApiClient) -> Result<(), Error> {
     let vm_config_path = root_path.join(format!("{}.json", args.container_id));
     if vm_config_path.exists() {
-        return Err(anyhow::anyhow!("VM configuration already exists"));
+        return Err(Error::VmConfigAlreadyExists);
     }
 
     // Open base vm config in root_path
@@ -23,7 +41,7 @@ pub async fn create(args: Create, root_path: PathBuf, client: &ApiClient) -> Res
 
     let spec_path = args.bundle.join("config.json");
     if !spec_path.exists() {
-        return Err(anyhow::anyhow!("Container configuration does not exist"));
+        return Err(Error::ContainerConfigDoesNotExist);
     }
     let spec: oci_spec::runtime::Spec = serde_json::from_str(&std::fs::read_to_string(spec_path)?)?;
 
@@ -36,7 +54,7 @@ pub async fn create(args: Create, root_path: PathBuf, client: &ApiClient) -> Res
         let read_only = root.readonly().unwrap_or(false);
         (root_path, read_only)
     } else {
-        return Err(anyhow::anyhow!("Root path is not specified"));
+        return Err(Error::RootPathIsNotSpecified);
     };
 
     let rootfs = vmm::api::MacosVmSharedDirectory {

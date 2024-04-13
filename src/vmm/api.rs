@@ -58,7 +58,17 @@ pub struct MacosVmConfig {
     pub audio: bool,
 }
 
-pub fn load_vm_config(path: &Path) -> Result<MacosVmConfig> {
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+    #[error(transparent)]
+    DeserializeError(#[from] serde_json::Error),
+    #[error(transparent)]
+    RpcClientError(#[from] tarpc::client::RpcError),
+}
+
+pub fn load_vm_config(path: &Path) -> Result<MacosVmConfig, Error> {
     let json_string = std::fs::read_to_string(path)?;
     Ok(serde_json::from_str(&json_string)?)
 }
