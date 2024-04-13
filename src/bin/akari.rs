@@ -10,6 +10,7 @@ use liboci_cli::StandardCmd;
 use akari::{
     api,
     commands::{create, delete, kill, spec, start, state},
+    path::{root_path, vmm_sock_path},
 };
 use tarpc::{serde_transport, tokio_serde::formats::Json};
 
@@ -63,27 +64,12 @@ enum SubCommand {
 async fn main() -> Result<()> {
     let opts = Opts::parse();
 
-    let root_path = match opts.global.root {
-        Some(path) => std::fs::canonicalize(path)?,
-        None => {
-            let mut default_root_path = PathBuf::from("/run/akari"); // FIXME: We cannot use this path
-            if let Ok(home_path) = std::env::var("HOME") {
-                if let Ok(home_path) = std::fs::canonicalize(home_path) {
-                    default_root_path = home_path.join(".akari/run");
-                }
-            }
-            default_root_path
-        }
-    };
-
-    let vmm_sock_path = opts.global.vmm_sock.unwrap_or_else(|| {
-        let mut default_vmm_sock_path = root_path.clone();
-        default_vmm_sock_path.push("vmm.sock");
-        default_vmm_sock_path
-    });
+    let root_path = root_path(opts.global.root)?;
+    let vmm_sock_path = vmm_sock_path(&root_path, opts.global.vmm_sock);
 
     let transport = serde_transport::unix::connect(vmm_sock_path, Json::default);
-    let client = api::ApiClient::new(tarpc::client::Config::default(), transport.await?).spawn();
+    let client =
+        api::BackendApiClient::new(tarpc::client::Config::default(), transport.await?).spawn();
 
     match opts.subcmd {
         SubCommand::Standard(cmd) => match *cmd {

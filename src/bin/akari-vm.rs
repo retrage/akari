@@ -17,7 +17,8 @@ use anyhow::Result;
 use clap::Parser;
 
 use akari::{
-    api::{self, Api, Response},
+    api::{self, BackendApi, Response},
+    path::{root_path, vmm_sock_path},
     traits::{ReadFrom, WriteTo},
     vmm::{self, api::MacosVmConfig},
 };
@@ -30,7 +31,12 @@ use tarpc::{
 
 #[derive(clap::Parser)]
 struct Opts {
-    socket: PathBuf,
+    /// root directory to store container state
+    #[clap(short, long)]
+    pub root: Option<PathBuf>,
+    /// Specify the path to the VMM socket
+    #[clap(short, long)]
+    vmm_sock: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug)]
@@ -48,7 +54,7 @@ struct ApiServer {
     threads: Arc<RwLock<Vec<thread::JoinHandle<Result<()>>>>>,
 }
 
-impl Api for ApiServer {
+impl BackendApi for ApiServer {
     async fn create(
         self,
         _context: ::tarpc::context::Context,
@@ -98,7 +104,6 @@ impl Api for ApiServer {
 
         state_map
             .get_mut(&container_id.clone())
-            .ok_or(anyhow::anyhow!("Container not found"))
             .expect("Container not found")
             .status = rx.recv().expect("Failed to receive status");
     }
@@ -107,7 +112,6 @@ impl Api for ApiServer {
         let mut state_map = self.state_map.write().expect("Lock poisoned");
         let state = state_map
             .get_mut(&container_id)
-            .ok_or(anyhow::anyhow!("Container not found"))
             .expect("Container not found");
 
         let _result = match state.status {
@@ -124,7 +128,6 @@ impl Api for ApiServer {
         let mut state_map = self.state_map.write().expect("Lock poisoned");
         let state = state_map
             .get_mut(&container_id)
-            .ok_or(anyhow::anyhow!("Container not found"))
             .expect("Container not found");
 
         let _result = match state.status {
@@ -145,7 +148,6 @@ impl Api for ApiServer {
         let mut state_map = self.state_map.write().expect("Lock poisoned");
         let state = state_map
             .get_mut(&container_id)
-            .ok_or(anyhow::anyhow!("Container not found"))
             .expect("Container not found");
 
         let _result = match state.status {
@@ -164,10 +166,7 @@ impl Api for ApiServer {
 
     async fn state(self, _context: ::tarpc::context::Context, container_id: String) -> Response {
         let state_map = self.state_map.read().expect("Lock poisoned");
-        let state = state_map
-            .get(&container_id)
-            .ok_or(anyhow::anyhow!("Container not found"))
-            .expect("Container not found");
+        let state = state_map.get(&container_id).expect("Container not found");
 
         api::Response {
             container_id,
@@ -188,7 +187,10 @@ async fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
 async fn main() -> Result<()> {
     let opts = Opts::parse();
 
-    let mut listener = serde_transport::unix::listen(opts.socket, Json::default).await?;
+    let root_path = root_path(opts.root)?;
+    let vmm_sock_path = vmm_sock_path(&root_path, opts.vmm_sock);
+
+    let mut listener = serde_transport::unix::listen(vmm_sock_path, Json::default).await?;
     listener.config_mut().max_frame_length(usize::MAX);
 
     let state_map = Arc::new(RwLock::new(HashMap::new()));

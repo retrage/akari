@@ -41,9 +41,6 @@ pub struct Request {
     pub bundle: Option<PathBuf>,
 }
 
-impl WriteTo for Request {}
-impl ReadFrom for Request {}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Response {
@@ -54,11 +51,8 @@ pub struct Response {
     pub bundle: PathBuf,
 }
 
-impl WriteTo for Response {}
-impl ReadFrom for Response {}
-
 #[tarpc::service]
-pub trait Api {
+pub trait BackendApi {
     async fn create(container_id: String, vm_config: MacosVmConfig, bundle: PathBuf);
     async fn delete(container_id: String);
     async fn kill(container_id: String);

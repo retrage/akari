@@ -7,9 +7,9 @@ use anyhow::Result;
 use liboci_cli::Create;
 use tarpc::context;
 
-use crate::{api::ApiClient, vmm};
+use crate::{api::BackendApiClient, vmm};
 
-pub async fn create(args: Create, root_path: PathBuf, client: &ApiClient) -> Result<()> {
+pub async fn create(args: Create, root_path: PathBuf, client: &BackendApiClient) -> Result<()> {
     let vm_config_path = root_path.join(format!("{}.json", args.container_id));
     if vm_config_path.exists() {
         return Err(anyhow::anyhow!("VM configuration already exists"));

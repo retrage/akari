@@ -7,9 +7,9 @@ use anyhow::Result;
 use liboci_cli::Kill;
 use tarpc::context;
 
-use crate::api::ApiClient;
+use crate::api::BackendApiClient;
 
-pub async fn kill(args: Kill, _root_path: PathBuf, client: &ApiClient) -> Result<()> {
+pub async fn kill(args: Kill, _root_path: PathBuf, client: &BackendApiClient) -> Result<()> {
     client.kill(context::current(), args.container_id).await?;
 
     Ok(())

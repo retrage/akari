@@ -3,5 +3,6 @@
 
 pub mod api;
 pub mod commands;
+pub mod path;
 pub mod traits;
 pub mod vmm;
