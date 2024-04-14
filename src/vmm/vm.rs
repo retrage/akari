@@ -79,7 +79,7 @@ impl Vm {
                 info!("VM started");
                 Ok(())
             }
-            Err(e) => return Err(e),
+            Err(e) => Err(e),
         }
     }
 
@@ -110,7 +110,7 @@ impl Vm {
                 info!("VM stopped");
                 Ok(())
             }
-            Err(e) => return Err(e),
+            Err(e) => Err(e),
         }
     }
 }
