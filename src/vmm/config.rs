@@ -13,7 +13,7 @@ use icrate::{
         VZMacHardwareModel, VZMacMachineIdentifier, VZMacOSBootLoader, VZMacPlatformConfiguration,
         VZSharedDirectory, VZSingleDirectoryShare, VZVirtioBlockDeviceConfiguration,
         VZVirtioConsoleDeviceSerialPortConfiguration, VZVirtioFileSystemDeviceConfiguration,
-        VZVirtualMachineConfiguration,
+        VZVirtioSocketDeviceConfiguration, VZVirtualMachineConfiguration,
     },
 };
 use objc2::{rc::Id, ClassType};
@@ -28,6 +28,7 @@ pub struct Config {
     consoles: Vec<Id<VZVirtioConsoleDeviceSerialPortConfiguration>>,
     shared_dirs: Vec<Id<VZVirtioFileSystemDeviceConfiguration>>,
     graphics: Option<Id<VZMacGraphicsDeviceConfiguration>>,
+    socket: Option<Id<VZVirtioSocketDeviceConfiguration>>,
 }
 
 impl Config {
@@ -40,6 +41,7 @@ impl Config {
             consoles: Vec::new(),
             shared_dirs: Vec::new(),
             graphics: None,
+            socket: None,
         }
     }
 
@@ -67,6 +69,8 @@ impl Config {
             }
         }
 
+        config.socket()?;
+
         if let Some(shared_dirs) = vm_config.shares {
             for shared_dir in shared_dirs {
                 config.shared_dir(&shared_dir.path, shared_dir.read_only)?;
@@ -91,6 +95,10 @@ impl Config {
             if let Some(graphics) = &self.graphics {
                 config.setGraphicsDevices(&NSArray::from_slice(&[graphics.as_super()]));
             };
+
+            if let Some(socket) = &self.socket {
+                config.setSocketDevices(&NSArray::from_slice(&[socket.as_super()]));
+            }
 
             let storages = self
                 .storages
@@ -251,6 +259,14 @@ impl Config {
         unsafe { graphics.setDisplays(&NSArray::from_slice(&[display.as_ref()])) };
 
         self.graphics = Some(graphics);
+
+        Ok(self)
+    }
+
+    pub fn socket(&mut self) -> Result<&mut Self> {
+        let socket = unsafe { VZVirtioSocketDeviceConfiguration::new() };
+
+        self.socket = Some(socket);
 
         Ok(self)
     }
