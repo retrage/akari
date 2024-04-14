@@ -15,6 +15,7 @@ pub enum Command {
     Kill,
     Start,
     State,
+    Connect(u32),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -74,4 +75,5 @@ pub trait Api {
     async fn kill(container_id: String) -> Result<(), Error>;
     async fn start(container_id: String) -> Result<(), Error>;
     async fn state(container_id: String) -> Result<Response, Error>;
+    async fn connect(container_id: String, port: u32) -> Result<(), Error>;
 }

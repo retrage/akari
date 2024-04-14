@@ -9,7 +9,7 @@ use liboci_cli::StandardCmd;
 
 use akari::{
     api,
-    commands::{create, delete, kill, spec, start, state},
+    commands::{connect, create, delete, kill, spec, start, state},
     path::{root_path, vmm_sock_path},
 };
 use tarpc::{serde_transport, tokio_serde::formats::Json};
@@ -17,6 +17,7 @@ use tarpc::{serde_transport, tokio_serde::formats::Json};
 #[derive(clap::Parser, Debug)]
 pub enum CommonCmd {
     Spec(liboci_cli::Spec),
+    Connect(connect::Connect),
 }
 
 // The OCI Command Line Interface document doesn't define any global
@@ -82,6 +83,7 @@ async fn main() -> Result<()> {
         },
         SubCommand::Common(cmd) => match *cmd {
             CommonCmd::Spec(spec) => spec::spec(spec)?,
+            CommonCmd::Connect(connect) => connect::connect(connect, root_path, &client).await?,
         },
     };
 

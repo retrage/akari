@@ -2,6 +2,7 @@
 // Copyright (C) 2024 Akira Moroo
 
 use std::{
+    ops::Deref,
     rc::Rc,
     sync::{mpsc, RwLock},
 };
@@ -11,10 +12,12 @@ use block2::RcBlock;
 use icrate::{
     queue::{Queue, QueueAttribute},
     Foundation::NSError,
-    Virtualization::{VZVirtualMachine, VZVirtualMachineConfiguration},
+    Virtualization::{
+        VZSocketDevice, VZVirtioSocketConnection, VZVirtualMachine, VZVirtualMachineConfiguration,
+    },
 };
 use log::info;
-use objc2::{msg_send_id, rc::Id, ClassType};
+use objc2::{msg_send, msg_send_id, rc::Id, ClassType};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -112,5 +115,63 @@ impl Vm {
             }
             Err(e) => Err(e),
         }
+    }
+
+    pub fn connect(&self, port: u32) -> Result<(), Error> {
+        info!("Connecting VM");
+        let (tx, rx) = mpsc::channel::<Result<(), Error>>();
+        let vm = self.vm.clone();
+        let block = RcBlock::new(move || {
+            let tx = tx.clone();
+            let err_tx = tx.clone();
+            let completion_handler = RcBlock::new(
+                move |connection: *mut VZVirtioSocketConnection, error: *mut NSError| {
+                    info!("Connected to VM: {:?}", connection);
+                    if connection.is_null() {
+                        if !error.is_null() {
+                            unsafe {
+                                info!("error: {:?}", error.as_ref().unwrap());
+                            }
+                        }
+                        err_tx
+                            .send(Err(Error::FailedToStartVm))
+                            .expect("Failed to send");
+                    } else {
+                        unsafe {
+                            let connection = connection.as_ref().unwrap();
+                            info!("sourcePort: {}", connection.sourcePort());
+                            info!("destinationPort: {}", connection.destinationPort());
+                            info!("fileDescriptor: {}", connection.fileDescriptor());
+                        }
+                    }
+                },
+            );
+
+            match vm.write() {
+                Ok(vm) => unsafe {
+                    let socket = vm.socketDevices().firstObject().unwrap();
+                    Self::do_connect(socket, port, completion_handler);
+                    tx.send(Ok(())).expect("Failed to send");
+                },
+                Err(_) => tx.send(Err(Error::LockPoisoned)).expect("Failed to send"),
+            }
+        });
+        self.queue.exec_block_async(&block);
+
+        match rx.recv()? {
+            Ok(()) => {
+                info!("VM connected");
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    unsafe fn do_connect(
+        socket: Id<VZSocketDevice>,
+        port: u32,
+        completion_handler: RcBlock<dyn Fn(*mut VZVirtioSocketConnection, *mut NSError)>,
+    ) {
+        let _: () = msg_send![socket.as_super(), connectToPort: port, completionHandler: completion_handler.deref()];
     }
 }

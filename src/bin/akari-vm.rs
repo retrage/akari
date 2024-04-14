@@ -114,6 +114,7 @@ impl Api for ApiServer {
                 match cmd {
                     api::Command::Start => vm.start()?,
                     api::Command::Kill => vm.kill()?,
+                    api::Command::Connect(port) => vm.connect(port)?,
                     _ => break, // TODO
                 }
             }
@@ -239,6 +240,36 @@ impl Api for ApiServer {
             bundle: state.bundle.clone(),
         };
         Ok(response)
+    }
+
+    async fn connect(
+        self,
+        _context: ::tarpc::context::Context,
+        container_id: String,
+        port: u32,
+    ) -> Result<(), api::Error> {
+        info!("connect: container_id={}", container_id);
+
+        let mut state_map = self
+            .state_map
+            .write()
+            .map_err(|_| api::Error::LockPoisoned)?;
+        let state = state_map
+            .get_mut(&container_id)
+            .ok_or(api::Error::ContainerNotFound)?;
+
+        match state.status {
+            api::VmStatus::Running => {
+                state
+                    .tx
+                    .as_ref()
+                    .ok_or(api::Error::ThreadNotFound)?
+                    .send(api::Command::Connect(port))
+                    .map_err(|_| api::Error::VmCommandFailed)?;
+                Ok(())
+            }
+            _ => Err(api::Error::UnpextectedContainerStatus(state.status.clone())),
+        }
     }
 }
 
