@@ -2,4 +2,5 @@
 // Copyright (C) 2024 Akira Moroo
 
 pub mod api;
+pub mod config;
 pub mod vm;

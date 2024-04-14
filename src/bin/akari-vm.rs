@@ -96,7 +96,7 @@ impl Api for ApiServer {
                 None => None,
             };
 
-            let config = vmm::vm::create_vm(vm_config, &serial_sock)?;
+            let config = vmm::vm::create_config(vm_config, &serial_sock)?;
             let vm = vmm::vm::Vm::new(config.clone())?;
             tx.send(api::VmStatus::Created)?;
 
