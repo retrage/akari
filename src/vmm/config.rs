@@ -4,6 +4,7 @@
 use std::path::Path;
 
 use anyhow::Result;
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 use icrate::{
     Foundation::{NSArray, NSData, NSFileHandle, NSString, NSURL},
     Virtualization::{
@@ -16,6 +17,8 @@ use icrate::{
     },
 };
 use objc2::{rc::Id, ClassType};
+
+use super::api::MacosVmConfig;
 
 pub struct Config {
     cpu_count: usize,
@@ -38,6 +41,41 @@ impl Config {
             shared_dirs: Vec::new(),
             graphics: None,
         }
+    }
+
+    pub fn from_vm_config(vm_config: MacosVmConfig) -> Result<Self> {
+        let hw_model = BASE64_STANDARD
+            .decode(vm_config.hardware_model.as_bytes())
+            .map_err(|e| anyhow::anyhow!("Failed to decode hardware model: {}", e))?;
+        let machine_id = BASE64_STANDARD
+            .decode(vm_config.machine_id.as_bytes())
+            .map_err(|e| anyhow::anyhow!("Failed to decode machine id: {}", e))?;
+
+        let mut config = Self::new(vm_config.cpus, vm_config.ram as u64);
+
+        config.hw_model(hw_model)?.machine_id(machine_id)?;
+
+        for storage in vm_config.storage {
+            match storage.r#type.as_str() {
+                "disk" => {
+                    config.storage(&storage.file, false)?;
+                }
+                "aux" => {
+                    config.aux(&storage.file)?;
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(shared_dirs) = vm_config.shares {
+            for shared_dir in shared_dirs {
+                config.shared_dir(&shared_dir.path, shared_dir.read_only)?;
+            }
+        }
+
+        config.graphics(2560, 1600, 200)?;
+
+        Ok(config)
     }
 
     pub fn build(&mut self) -> Id<VZVirtualMachineConfiguration> {

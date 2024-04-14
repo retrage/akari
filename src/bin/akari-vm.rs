@@ -7,7 +7,10 @@
 use std::{
     collections::HashMap,
     future::Future,
-    os::unix::{fs::FileTypeExt, net::UnixStream},
+    os::{
+        fd::AsRawFd,
+        unix::{fs::FileTypeExt, net::UnixStream},
+    },
     path::PathBuf,
     sync::{
         mpsc::{self, Sender},
@@ -96,8 +99,10 @@ impl Api for ApiServer {
                 None => None,
             };
 
-            let config = vmm::vm::create_config(vm_config, &serial_sock)?;
-            let vm = vmm::vm::Vm::new(config.clone())?;
+            let config = vmm::config::Config::from_vm_config(vm_config)?
+                .console(serial_sock.as_ref().map(|s| s.as_raw_fd()))?
+                .build();
+            let vm = vmm::vm::Vm::new(config)?;
             tx.send(api::VmStatus::Created)?;
 
             loop {

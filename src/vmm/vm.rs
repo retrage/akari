@@ -2,7 +2,6 @@
 // Copyright (C) 2024 Akira Moroo
 
 use std::{
-    os::{fd::AsRawFd, unix::net::UnixStream},
     rc::Rc,
     sync::{mpsc, RwLock},
 };
@@ -15,49 +14,6 @@ use icrate::{
     Virtualization::*,
 };
 use objc2::{msg_send_id, rc::Id, ClassType};
-
-use base64::prelude::*;
-
-use super::{api::MacosVmConfig, config::Config};
-
-pub fn create_config(
-    vm_config: MacosVmConfig,
-    console: &Option<UnixStream>,
-) -> Result<Id<VZVirtualMachineConfiguration>> {
-    let hw_model = BASE64_STANDARD
-        .decode(vm_config.hardware_model.as_bytes())
-        .map_err(|e| anyhow::anyhow!("Failed to decode hardware model: {}", e))?;
-    let machine_id = BASE64_STANDARD
-        .decode(vm_config.machine_id.as_bytes())
-        .map_err(|e| anyhow::anyhow!("Failed to decode machine id: {}", e))?;
-
-    let mut config = Config::new(vm_config.cpus, vm_config.ram as u64);
-
-    config.hw_model(hw_model)?.machine_id(machine_id)?;
-    config.console(console.as_ref().map(|s| s.as_raw_fd()))?;
-
-    for storage in vm_config.storage {
-        match storage.r#type.as_str() {
-            "disk" => {
-                config.storage(&storage.file, false)?;
-            }
-            "aux" => {
-                config.aux(&storage.file)?;
-            }
-            _ => {}
-        }
-    }
-
-    if let Some(shared_dirs) = vm_config.shares {
-        for shared_dir in shared_dirs {
-            config.shared_dir(&shared_dir.path, shared_dir.read_only)?;
-        }
-    }
-
-    config.graphics(2560, 1600, 200)?;
-
-    Ok(config.build())
-}
 
 pub struct Vm {
     vm: Rc<RwLock<Id<VZVirtualMachine>>>,
