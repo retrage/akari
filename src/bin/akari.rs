@@ -62,6 +62,8 @@ enum SubCommand {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    env_logger::init();
+
     let opts = Opts::parse();
 
     let root_path = root_path(opts.global.root)?;

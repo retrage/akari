@@ -13,6 +13,7 @@ use icrate::{
     Foundation::NSError,
     Virtualization::{VZVirtualMachine, VZVirtualMachineConfiguration},
 };
+use log::info;
 use objc2::{msg_send_id, rc::Id, ClassType};
 
 #[derive(thiserror::Error, Debug)]
@@ -50,6 +51,7 @@ impl Vm {
     }
 
     pub fn start(&self) -> Result<(), Error> {
+        info!("Starting VM");
         let (tx, rx) = mpsc::channel::<Result<(), Error>>();
         let vm = self.vm.clone();
         let block = RcBlock::new(move || {
@@ -72,10 +74,17 @@ impl Vm {
         });
         self.queue.exec_block_async(&block);
 
-        rx.recv()?
+        match rx.recv()? {
+            Ok(()) => {
+                info!("VM started");
+                Ok(())
+            }
+            Err(e) => return Err(e),
+        }
     }
 
     pub fn kill(&self) -> Result<(), Error> {
+        info!("Stopping VM");
         let (tx, rx) = mpsc::channel::<Result<(), Error>>();
         let vm = self.vm.clone();
         let block = RcBlock::new(move || {
@@ -96,6 +105,12 @@ impl Vm {
         });
         self.queue.exec_block_async(&block);
 
-        rx.recv()?
+        match rx.recv()? {
+            Ok(()) => {
+                info!("VM stopped");
+                Ok(())
+            }
+            Err(e) => return Err(e),
+        }
     }
 }

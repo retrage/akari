@@ -28,6 +28,7 @@ use akari::{
     vmm::{self, api::MacosVmConfig},
 };
 use futures::{future, stream::StreamExt};
+use log::{debug, info};
 use tarpc::{
     serde_transport,
     server::{self, Channel},
@@ -72,6 +73,8 @@ impl Api for ApiServer {
         vm_config: MacosVmConfig,
         bundle: PathBuf,
     ) -> Result<(), api::Error> {
+        info!("create: container_id={}, bundle={:?}", container_id, bundle);
+
         let mut state_map = self
             .state_map
             .write()
@@ -106,6 +109,7 @@ impl Api for ApiServer {
             tx.send(api::VmStatus::Created)?;
 
             loop {
+                debug!("Waiting for command...");
                 let cmd = cmd_rx.recv()?;
                 match cmd {
                     api::Command::Start => vm.start()?,
@@ -133,6 +137,8 @@ impl Api for ApiServer {
         _context: ::tarpc::context::Context,
         container_id: String,
     ) -> Result<(), api::Error> {
+        info!("delete: container_id={}", container_id);
+
         let mut state_map = self
             .state_map
             .write()
@@ -155,6 +161,8 @@ impl Api for ApiServer {
         _context: ::tarpc::context::Context,
         container_id: String,
     ) -> Result<(), api::Error> {
+        info!("kill: container_id={}", container_id);
+
         let mut state_map = self
             .state_map
             .write()
@@ -183,6 +191,8 @@ impl Api for ApiServer {
         _context: ::tarpc::context::Context,
         container_id: String,
     ) -> Result<(), api::Error> {
+        info!("start: container_id={}", container_id);
+
         let mut state_map = self
             .state_map
             .write()
@@ -211,6 +221,8 @@ impl Api for ApiServer {
         _context: ::tarpc::context::Context,
         container_id: String,
     ) -> Result<Response, api::Error> {
+        info!("state: container_id={}", container_id);
+
         let state_map = self
             .state_map
             .read()
@@ -237,6 +249,8 @@ async fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
 #[tokio::main]
 
 async fn main() -> Result<()> {
+    env_logger::init();
+
     let opts = Opts::parse();
 
     let root_path = root_path(opts.root)?;
@@ -258,6 +272,7 @@ async fn main() -> Result<()> {
         }
     }
 
+    info!("Listening on: {:?}", vmm_sock_path);
     let mut listener = serde_transport::unix::listen(vmm_sock_path, Json::default).await?;
     listener.config_mut().max_frame_length(usize::MAX);
 
@@ -267,6 +282,7 @@ async fn main() -> Result<()> {
         .filter_map(|r| future::ready(r.ok()))
         .map(server::BaseChannel::with_defaults)
         .map(|channel| {
+            debug!("Accepted connection");
             let state_map = state_map.clone();
             let server = ApiServer { state_map };
             channel.execute(server.serve()).for_each(spawn)
