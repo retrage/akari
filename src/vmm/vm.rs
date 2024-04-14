@@ -11,9 +11,23 @@ use block2::RcBlock;
 use icrate::{
     queue::{Queue, QueueAttribute},
     Foundation::NSError,
-    Virtualization::*,
+    Virtualization::{VZVirtualMachine, VZVirtualMachineConfiguration},
 };
 use objc2::{msg_send_id, rc::Id, ClassType};
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Invalid configuration: {0}")]
+    InvalidConfiguration(Id<NSError>),
+    #[error("Failed to start VM")]
+    FailedToStartVm,
+    #[error("Failed to stop VM")]
+    FailedToStopVm,
+    #[error(transparent)]
+    FailedToRecvError(#[from] mpsc::RecvError),
+    #[error("Lock poisoned")]
+    LockPoisoned,
+}
 
 pub struct Vm {
     vm: Rc<RwLock<Id<VZVirtualMachine>>>,
@@ -21,11 +35,11 @@ pub struct Vm {
 }
 
 impl Vm {
-    pub fn new(config: Id<VZVirtualMachineConfiguration>) -> Result<Self> {
+    pub fn new(config: Id<VZVirtualMachineConfiguration>) -> Result<Self, Error> {
         unsafe {
-            if let Err(e) = config.validateWithError() {
-                return Err(anyhow::anyhow!(e));
-            }
+            config
+                .validateWithError()
+                .map_err(Error::InvalidConfiguration)?;
         }
         let queue = Queue::create("com.akari.vm.queue", QueueAttribute::Serial);
         let vm: Rc<RwLock<Id<VZVirtualMachine>>> = Rc::new(RwLock::new(unsafe {
@@ -35,58 +49,52 @@ impl Vm {
         Ok(vm)
     }
 
-    pub fn start(&self) -> Result<()> {
-        let (tx, rx) = mpsc::channel::<Result<()>>();
-        let vm_clone = self.vm.clone();
-        let dispatch_block = RcBlock::new(move || {
-            let inner_tx = tx.clone();
+    pub fn start(&self) -> Result<(), Error> {
+        let (tx, rx) = mpsc::channel::<Result<(), Error>>();
+        let vm = self.vm.clone();
+        let block = RcBlock::new(move || {
+            let tx = tx.clone();
+            let err_tx = tx.clone();
             let completion_handler = RcBlock::new(move |error: *mut NSError| {
                 if !error.is_null() {
-                    inner_tx
-                        .send(Err(anyhow::anyhow!("Failed to start VM")))
-                        .expect("Failed to send error");
+                    err_tx
+                        .send(Err(Error::FailedToStartVm))
+                        .expect("Failed to send");
                 } else {
-                    inner_tx.send(Ok(())).expect("Failed to send result");
+                    err_tx.send(Ok(())).expect("Failed to send");
                 }
             });
-            unsafe {
-                vm_clone
-                    .write()
-                    .unwrap()
-                    .startWithCompletionHandler(&completion_handler);
+
+            match vm.write() {
+                Ok(vm) => unsafe { vm.startWithCompletionHandler(&completion_handler) },
+                Err(_) => tx.send(Err(Error::LockPoisoned)).expect("Failed to send"),
             }
         });
-        self.queue.exec_block_async(&dispatch_block);
+        self.queue.exec_block_async(&block);
 
         rx.recv()?
     }
 
-    pub fn kill(&self) -> Result<()> {
-        let (tx, rx) = mpsc::channel::<Result<()>>();
-        let vm_clone = self.vm.clone();
-        let dispatch_block = RcBlock::new(move || {
-            let inner_tx = tx.clone();
+    pub fn kill(&self) -> Result<(), Error> {
+        let (tx, rx) = mpsc::channel::<Result<(), Error>>();
+        let vm = self.vm.clone();
+        let block = RcBlock::new(move || {
+            let err_tx = tx.clone();
             let completion_handler = RcBlock::new(move |error: *mut NSError| {
                 if !error.is_null() {
-                    inner_tx
-                        .send(Err(anyhow::anyhow!("Failed to stop VM")))
-                        .expect("Failed to send error");
+                    err_tx
+                        .send(Err(Error::FailedToStopVm))
+                        .expect("Failed to send");
                 } else {
-                    inner_tx.send(Ok(())).expect("Failed to send result");
+                    err_tx.send(Ok(())).expect("Failed to send");
                 }
             });
-            unsafe {
-                if vm_clone.read().expect("Failed to read lock").canStop() {
-                    vm_clone
-                        .write()
-                        .expect("Failed to write lock")
-                        .stopWithCompletionHandler(&completion_handler);
-                } else {
-                    panic!("VM cannot be stopped");
-                }
+            match vm.write() {
+                Ok(vm) => unsafe { vm.stopWithCompletionHandler(&completion_handler) },
+                Err(_) => tx.send(Err(Error::LockPoisoned)).expect("Failed to send"),
             }
         });
-        self.queue.exec_block_async(&dispatch_block);
+        self.queue.exec_block_async(&block);
 
         rx.recv()?
     }
