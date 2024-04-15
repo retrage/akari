@@ -3,6 +3,7 @@
 
 use std::{
     ops::Deref,
+    os::{fd::FromRawFd, unix::net::UnixStream},
     rc::Rc,
     sync::{mpsc, RwLock},
 };
@@ -117,7 +118,7 @@ impl Vm {
         }
     }
 
-    pub fn connect(&self, port: u32) -> Result<(), Error> {
+    pub fn connect(&self, port: u32, vsock_handler: fn(&mut UnixStream)) -> Result<(), Error> {
         info!("Connecting VM");
         let (tx, rx) = mpsc::channel::<Result<(), Error>>();
         let vm = self.vm.clone();
@@ -136,14 +137,18 @@ impl Vm {
                         err_tx
                             .send(Err(Error::FailedToStartVm))
                             .expect("Failed to send");
-                    } else {
-                        unsafe {
-                            let connection = connection.as_ref().unwrap();
-                            info!("sourcePort: {}", connection.sourcePort());
-                            info!("destinationPort: {}", connection.destinationPort());
-                            info!("fileDescriptor: {}", connection.fileDescriptor());
-                        }
+                        return;
                     }
+                    let connection =
+                        unsafe { connection.as_ref().expect("Failed to get connection") };
+                    let fd = unsafe { connection.fileDescriptor() };
+                    info!("fileDescriptor: {}", fd);
+                    unsafe {
+                        info!("sourcePort: {}", connection.sourcePort());
+                        info!("destinationPort: {}", connection.destinationPort());
+                    }
+                    let mut stream = unsafe { UnixStream::from_raw_fd(fd) };
+                    vsock_handler(&mut stream);
                 },
             );
 

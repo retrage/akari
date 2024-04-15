@@ -7,6 +7,7 @@
 use std::{
     collections::HashMap,
     future::Future,
+    io::Write,
     os::{
         fd::AsRawFd,
         unix::{fs::FileTypeExt, net::UnixStream},
@@ -28,7 +29,7 @@ use akari::{
     vmm::{self, api::MacosVmConfig},
 };
 use futures::{future, stream::StreamExt};
-use log::{debug, info};
+use log::{debug, error, info};
 use tarpc::{
     serde_transport,
     server::{self, Channel},
@@ -108,14 +109,21 @@ impl Api for ApiServer {
             let vm = vmm::vm::Vm::new(config)?;
             tx.send(api::VmStatus::Created)?;
 
+            let vsock_handler = |stream: &mut UnixStream| {
+                stream.write_fmt(format_args!("Hello, world!")).unwrap();
+            };
+
             loop {
                 debug!("Waiting for command...");
                 let cmd = cmd_rx.recv()?;
                 match cmd {
                     api::Command::Start => vm.start()?,
                     api::Command::Kill => vm.kill()?,
-                    api::Command::Connect(port) => vm.connect(port)?,
-                    _ => break, // TODO
+                    api::Command::Connect(port) => vm.connect(port, vsock_handler)?,
+                    _ => {
+                        error!("Unexpected command: {:?}", cmd);
+                        break;
+                    }
                 }
             }
             Ok(())
