@@ -15,7 +15,7 @@ pub async fn kill(args: Kill, _root_path: PathBuf, client: &ApiClient) -> Result
     client
         .kill(context::current(), args.container_id)
         .await
-        .map_err(Error::RpcClientError)?
+        .map_err(Error::RpcClient)?
         .map_err(Error::Api)?;
 
     Ok(())

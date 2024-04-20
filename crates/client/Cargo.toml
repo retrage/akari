@@ -1,0 +1,18 @@
+[package]
+name = "client"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+env_logger.workspace = true
+liboci-cli.workspace = true
+oci-spec.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tarpc.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+libakari = { path = "../libakari" }

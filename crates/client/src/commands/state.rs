@@ -73,7 +73,7 @@ pub async fn state(args: State, _root_path: PathBuf, client: &ApiClient) -> Resu
     let response = client
         .state(context::current(), args.container_id)
         .await
-        .map_err(Error::RpcClientError)?
+        .map_err(Error::RpcClient)?
         .map_err(Error::Api)?;
 
     let status = ContainerStatus::from(response.status);

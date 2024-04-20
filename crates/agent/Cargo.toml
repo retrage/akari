@@ -1,0 +1,16 @@
+[package]
+name = "agent"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow.workspace = true
+env_logger.workspace = true
+log.workspace = true
+oci-spec.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+vsock = { git = "https://github.com/rust-vsock/vsock-rs", rev = "2223f5a" }

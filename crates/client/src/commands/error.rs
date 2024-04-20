@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
-use crate::{api, vmm};
-
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("VM configuration already exists")]
@@ -12,13 +10,13 @@ pub enum Error {
     #[error("Root path is not specified")]
     RootPathIsNotSpecified,
     #[error(transparent)]
-    VmmApiError(#[from] vmm::api::Error),
+    VmConfig(#[from] libakari::vm_config::Error),
     #[error(transparent)]
-    IoError(#[from] std::io::Error),
+    Io(#[from] std::io::Error),
     #[error(transparent)]
-    Api(#[from] api::Error),
+    Api(#[from] libakari::api::Error),
     #[error(transparent)]
-    DeserializeError(#[from] serde_json::Error),
+    Deserialize(#[from] serde_json::Error),
     #[error(transparent)]
-    RpcClientError(#[from] tarpc::client::RpcError),
+    RpcClient(#[from] tarpc::client::RpcError),
 }

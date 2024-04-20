@@ -1,0 +1,29 @@
+[package]
+name = "server"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+env_logger.workspace = true
+futures.workspace = true
+log.workspace = true
+tarpc.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+libakari = { path = "../libakari" }
+
+base64 = "0.22.0"
+
+icrate = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization", features = [
+    "AppKit",
+    "AppKit_all",
+    "Foundation",
+    "Foundation_all",
+    "Virtualization",
+    "Virtualization_all",
+] }
+objc2 = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization" }
+block2 = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization" }

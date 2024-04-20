@@ -22,7 +22,7 @@ pub async fn connect(args: Connect, _root_path: PathBuf, client: &ApiClient) -> 
     client
         .connect(context::current(), args.container_id, args.port)
         .await
-        .map_err(Error::RpcClientError)?
+        .map_err(Error::RpcClient)?
         .map_err(Error::Api)?;
 
     Ok(())

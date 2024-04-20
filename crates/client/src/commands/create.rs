@@ -7,7 +7,10 @@ use anyhow::Result;
 use liboci_cli::Create;
 use tarpc::context;
 
-use crate::{api::ApiClient, vmm};
+use libakari::{
+    api::ApiClient,
+    vm_config::{load_vm_config, MacosVmSerial, MacosVmSharedDirectory},
+};
 
 use super::error::Error;
 
@@ -19,7 +22,7 @@ pub async fn create(args: Create, root_path: PathBuf, client: &ApiClient) -> Res
 
     // Open base vm config in root_path
     let base_vm_config_path = root_path.join("vm.json.base");
-    let mut vm_config = vmm::api::load_vm_config(&base_vm_config_path)?;
+    let mut vm_config = load_vm_config(&base_vm_config_path)?;
 
     assert!(vm_config.shares.is_none());
 
@@ -41,7 +44,7 @@ pub async fn create(args: Create, root_path: PathBuf, client: &ApiClient) -> Res
         return Err(Error::RootPathIsNotSpecified);
     };
 
-    let rootfs = vmm::api::MacosVmSharedDirectory {
+    let rootfs = MacosVmSharedDirectory {
         path: root_path.clone(),
         automount: true,
         read_only,
@@ -50,7 +53,7 @@ pub async fn create(args: Create, root_path: PathBuf, client: &ApiClient) -> Res
 
     // Handle console_socket
     if let Some(console_socket) = args.console_socket {
-        let serial = vmm::api::MacosVmSerial {
+        let serial = MacosVmSerial {
             path: console_socket,
         };
         vm_config.serial = Some(serial);
@@ -65,7 +68,7 @@ pub async fn create(args: Create, root_path: PathBuf, client: &ApiClient) -> Res
     client
         .create(context::current(), args.container_id, vm_config, root_path)
         .await
-        .map_err(Error::RpcClientError)?
+        .map_err(Error::RpcClient)?
         .map_err(Error::Api)?;
 
     Ok(())

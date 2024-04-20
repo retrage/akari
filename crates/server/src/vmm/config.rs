@@ -16,9 +16,8 @@ use icrate::{
         VZVirtioSocketDeviceConfiguration, VZVirtualMachineConfiguration,
     },
 };
+use libakari::vm_config::MacosVmConfig;
 use objc2::{rc::Id, ClassType};
-
-use super::api::MacosVmConfig;
 
 pub struct Config {
     cpu_count: usize,

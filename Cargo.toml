@@ -1,11 +1,13 @@
-[package]
-name = "akari"
+[workspace]
+members = ["crates/agent", "crates/client", "crates/libakari", "crates/server"]
+resolver = "2"
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
 
-[dependencies]
+[workspace.dependencies]
 anyhow = "1.0.82"
-base64 = "0.22.0"
 clap = { version = "4.5.4", features = ["derive"] }
 env_logger = "0.11.3"
 futures = "0.3"
@@ -22,24 +24,3 @@ tarpc = { version = "0.34.0", features = [
 ] }
 tokio = { version = "1.37.0", features = ["macros", "net", "rt-multi-thread"] }
 thiserror = "1.0.58"
-vsock = { git = "https://github.com/rust-vsock/vsock-rs", rev = "2223f5a" }
-
-icrate = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization", features = [
-    "AppKit",
-    "AppKit_all",
-    "Foundation",
-    "Foundation_all",
-    "Virtualization",
-    "Virtualization_all",
-] }
-objc2 = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization" }
-block2 = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization" }
-
-[[bin]]
-name = "akari"
-
-[[bin]]
-name = "akari-vm"
-
-[[bin]]
-name = "akari-agent"

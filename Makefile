@@ -4,7 +4,7 @@ SHELL := zsh
 
 BUILD_TYPE := debug
 
-VMM_NAME := akari-vm
+VMM_NAME := server
 ROOT_DIR := $(strip $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST)))))
 VMM_PATH := $(ROOT_DIR)/target/$(BUILD_TYPE)/$(VMM_NAME)
 

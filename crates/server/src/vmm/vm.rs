@@ -29,7 +29,7 @@ pub enum Error {
     #[error("Failed to stop VM")]
     FailedToStopVm,
     #[error(transparent)]
-    FailedToRecvError(#[from] mpsc::RecvError),
+    MpscRecv(#[from] mpsc::RecvError),
     #[error("Lock poisoned")]
     LockPoisoned,
 }

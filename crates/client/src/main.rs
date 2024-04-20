@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
+mod commands;
+
 use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
 use liboci_cli::StandardCmd;
+use tarpc::{serde_transport, tokio_serde::formats::Json};
 
-use akari::{
+use libakari::{
     api,
-    commands::{connect, create, delete, kill, spec, start, state},
     path::{root_path, vmm_sock_path},
 };
-use tarpc::{serde_transport, tokio_serde::formats::Json};
+
+use commands::{connect, create, delete, kill, spec, start, state};
 
 #[derive(clap::Parser, Debug)]
 pub enum CommonCmd {

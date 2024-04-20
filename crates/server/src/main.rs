@@ -4,6 +4,8 @@
 //! # Akari Virtual Machine
 //! This is a daemon that listens for requests from the akari OCI runtime to manage containers.
 
+mod vmm;
+
 use std::{
     collections::HashMap,
     future::Future,
@@ -23,12 +25,12 @@ use std::{
 use anyhow::Result;
 use clap::Parser;
 
-use akari::{
+use futures::{future, stream::StreamExt};
+use libakari::{
     api::{self, Api, Command, Response},
     path::{root_path, vmm_sock_path},
-    vmm::{self, api::MacosVmConfig},
+    vm_config::MacosVmConfig,
 };
-use futures::{future, stream::StreamExt};
 use log::{debug, error, info};
 use tarpc::{
     serde_transport,
@@ -51,7 +53,7 @@ type VmThreadTx = Sender<Command>;
 
 #[derive(Debug)]
 struct VmState {
-    config: vmm::api::MacosVmConfig,
+    config: MacosVmConfig,
     bundle: PathBuf,
     status: api::VmStatus,
 
