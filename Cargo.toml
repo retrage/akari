@@ -22,6 +22,7 @@ tarpc = { version = "0.34.0", features = [
 ] }
 tokio = { version = "1.37.0", features = ["macros", "net", "rt-multi-thread"] }
 thiserror = "1.0.58"
+vsock = { git = "https://github.com/rust-vsock/vsock-rs", rev = "2223f5a" }
 
 icrate = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization", features = [
     "AppKit",
@@ -39,3 +40,6 @@ name = "akari"
 
 [[bin]]
 name = "akari-vm"
+
+[[bin]]
+name = "akari-agent"
