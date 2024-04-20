@@ -2,4 +2,5 @@
 // Copyright (C) 2024 Akira Moroo
 
 pub mod config;
+pub mod queue;
 pub mod vm;
