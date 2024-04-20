@@ -140,7 +140,7 @@ checksum = "cf4b9d6a944f767f8e5e0db018570623c85f3d925ac718db4e06d0187adb21c1"
 [[package]]
 name = "block2"
 version = "0.4.0"
-source = "git+https://github.com/retrage/objc2?branch=icrate-virtualization#24056e11cbeefba00c9c8be3b5387bbf998de9a8"
+source = "git+https://github.com/retrage/objc2?branch=icrate-virtualization-clean#7318cf2aaf1a4bcc10ccd555258f997023e861c2"
 dependencies = [
  "objc2",
 ]
@@ -518,7 +518,7 @@ checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 [[package]]
 name = "icrate"
 version = "0.1.0"
-source = "git+https://github.com/retrage/objc2?branch=icrate-virtualization#24056e11cbeefba00c9c8be3b5387bbf998de9a8"
+source = "git+https://github.com/retrage/objc2?branch=icrate-virtualization-clean#7318cf2aaf1a4bcc10ccd555258f997023e861c2"
 dependencies = [
  "block2",
  "objc2",
@@ -683,12 +683,12 @@ dependencies = [
 [[package]]
 name = "objc-sys"
 version = "0.3.2"
-source = "git+https://github.com/retrage/objc2?branch=icrate-virtualization#24056e11cbeefba00c9c8be3b5387bbf998de9a8"
+source = "git+https://github.com/retrage/objc2?branch=icrate-virtualization-clean#7318cf2aaf1a4bcc10ccd555258f997023e861c2"
 
 [[package]]
 name = "objc2"
 version = "0.5.0"
-source = "git+https://github.com/retrage/objc2?branch=icrate-virtualization#24056e11cbeefba00c9c8be3b5387bbf998de9a8"
+source = "git+https://github.com/retrage/objc2?branch=icrate-virtualization-clean#7318cf2aaf1a4bcc10ccd555258f997023e861c2"
 dependencies = [
  "objc-sys",
  "objc2-encode",
@@ -697,7 +697,7 @@ dependencies = [
 [[package]]
 name = "objc2-encode"
 version = "4.0.0"
-source = "git+https://github.com/retrage/objc2?branch=icrate-virtualization#24056e11cbeefba00c9c8be3b5387bbf998de9a8"
+source = "git+https://github.com/retrage/objc2?branch=icrate-virtualization-clean#7318cf2aaf1a4bcc10ccd555258f997023e861c2"
 
 [[package]]
 name = "object"
