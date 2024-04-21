@@ -1,0 +1,10 @@
+[package]
+name = "containerd-akari-shim"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tokio.workspace = true
+
+async-trait = "0.1.80"
+containerd-shim = { version = "0.7.1", features = ["async"] }
