@@ -4,8 +4,6 @@
 //! # Akari Virtual Machine
 //! This is a daemon that listens for requests from the akari OCI runtime to manage containers.
 
-mod vmm;
-
 use std::{
     collections::HashMap,
     future::Future,

@@ -1494,18 +1494,15 @@ name = "server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "base64",
- "block2",
  "clap",
  "env_logger",
  "futures",
- "icrate",
  "libakari",
  "log",
- "objc2",
  "tarpc",
  "thiserror",
  "tokio",
+ "vmm",
 ]
 
 [[package]]
@@ -1934,6 +1931,20 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "vmm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64",
+ "block2",
+ "icrate",
+ "libakari",
+ "log",
+ "objc2",
+ "thiserror",
+]
 
 [[package]]
 name = "vsock"

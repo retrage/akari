@@ -19,7 +19,7 @@ use icrate::{
 use log::info;
 use objc2::{msg_send, msg_send_id, rc::Id, ClassType};
 
-use crate::vmm::queue::{Queue, QueueAttribute};
+use crate::queue::{Queue, QueueAttribute};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

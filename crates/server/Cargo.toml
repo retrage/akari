@@ -14,16 +14,4 @@ thiserror.workspace = true
 tokio.workspace = true
 
 libakari = { path = "../libakari" }
-
-base64 = "0.22.0"
-
-icrate = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization-clean", features = [
-    "AppKit",
-    "AppKit_all",
-    "Foundation",
-    "Foundation_all",
-    "Virtualization",
-    "Virtualization_all",
-] }
-objc2 = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization-clean" }
-block2 = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization-clean" }
+vmm = { path = "../vmm" }

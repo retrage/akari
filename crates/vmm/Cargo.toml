@@ -1,0 +1,24 @@
+[package]
+name = "vmm"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+log.workspace = true
+thiserror.workspace = true
+
+base64 = "0.22.0"
+
+libakari = { path = "../libakari" }
+
+icrate = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization-clean", features = [
+    "AppKit",
+    "AppKit_all",
+    "Foundation",
+    "Foundation_all",
+    "Virtualization",
+    "Virtualization_all",
+] }
+objc2 = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization-clean" }
+block2 = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization-clean" }
