@@ -14,7 +14,7 @@ use icrate::{
         VZSharedDirectory, VZSingleDirectoryShare, VZVirtioBlockDeviceConfiguration,
         VZVirtioConsoleDeviceSerialPortConfiguration, VZVirtioEntropyDeviceConfiguration,
         VZVirtioFileSystemDeviceConfiguration, VZVirtioSocketDeviceConfiguration,
-        VZVirtualMachineConfiguration,
+        VZVirtioTraditionalMemoryBalloonDeviceConfiguration, VZVirtualMachineConfiguration,
     },
 };
 use libakari::vm_config::MacosVmConfig;
@@ -30,6 +30,7 @@ pub struct Config {
     graphics: Option<Id<VZMacGraphicsDeviceConfiguration>>,
     socket: Option<Id<VZVirtioSocketDeviceConfiguration>>,
     entropy: Option<Id<VZVirtioEntropyDeviceConfiguration>>,
+    memory_ballon: Option<Id<VZVirtioTraditionalMemoryBalloonDeviceConfiguration>>,
 }
 
 impl Config {
@@ -44,6 +45,7 @@ impl Config {
             graphics: None,
             socket: None,
             entropy: None,
+            memory_ballon: None,
         }
     }
 
@@ -73,6 +75,7 @@ impl Config {
 
         config.socket()?;
         config.entropy()?;
+        config.memory_balloon()?;
 
         if let Some(shared_dirs) = vm_config.shares {
             for shared_dir in shared_dirs {
@@ -282,6 +285,14 @@ impl Config {
         let entropy = unsafe { VZVirtioEntropyDeviceConfiguration::new() };
 
         self.entropy = Some(entropy);
+
+        Ok(self)
+    }
+
+    pub fn memory_balloon(&mut self) -> Result<&mut Self> {
+        let memory_balloon = unsafe { VZVirtioTraditionalMemoryBalloonDeviceConfiguration::new() };
+
+        self.memory_ballon = Some(memory_balloon);
 
         Ok(self)
     }
