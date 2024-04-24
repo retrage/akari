@@ -12,8 +12,9 @@ use icrate::{
         VZMacAuxiliaryStorage, VZMacGraphicsDeviceConfiguration, VZMacGraphicsDisplayConfiguration,
         VZMacHardwareModel, VZMacMachineIdentifier, VZMacOSBootLoader, VZMacPlatformConfiguration,
         VZSharedDirectory, VZSingleDirectoryShare, VZVirtioBlockDeviceConfiguration,
-        VZVirtioConsoleDeviceSerialPortConfiguration, VZVirtioFileSystemDeviceConfiguration,
-        VZVirtioSocketDeviceConfiguration, VZVirtualMachineConfiguration,
+        VZVirtioConsoleDeviceSerialPortConfiguration, VZVirtioEntropyDeviceConfiguration,
+        VZVirtioFileSystemDeviceConfiguration, VZVirtioSocketDeviceConfiguration,
+        VZVirtualMachineConfiguration,
     },
 };
 use libakari::vm_config::MacosVmConfig;
@@ -28,6 +29,7 @@ pub struct Config {
     shared_dirs: Vec<Id<VZVirtioFileSystemDeviceConfiguration>>,
     graphics: Option<Id<VZMacGraphicsDeviceConfiguration>>,
     socket: Option<Id<VZVirtioSocketDeviceConfiguration>>,
+    entropy: Option<Id<VZVirtioEntropyDeviceConfiguration>>,
 }
 
 impl Config {
@@ -41,6 +43,7 @@ impl Config {
             shared_dirs: Vec::new(),
             graphics: None,
             socket: None,
+            entropy: None,
         }
     }
 
@@ -69,6 +72,7 @@ impl Config {
         }
 
         config.socket()?;
+        config.entropy()?;
 
         if let Some(shared_dirs) = vm_config.shares {
             for shared_dir in shared_dirs {
@@ -97,6 +101,10 @@ impl Config {
 
             if let Some(socket) = &self.socket {
                 config.setSocketDevices(&NSArray::from_slice(&[socket.as_super()]));
+            }
+
+            if let Some(entropy) = &self.entropy {
+                config.setEntropyDevices(&NSArray::from_slice(&[entropy.as_super()]));
             }
 
             let storages = self
@@ -266,6 +274,14 @@ impl Config {
         let socket = unsafe { VZVirtioSocketDeviceConfiguration::new() };
 
         self.socket = Some(socket);
+
+        Ok(self)
+    }
+
+    pub fn entropy(&mut self) -> Result<&mut Self> {
+        let entropy = unsafe { VZVirtioEntropyDeviceConfiguration::new() };
+
+        self.entropy = Some(entropy);
 
         Ok(self)
     }
