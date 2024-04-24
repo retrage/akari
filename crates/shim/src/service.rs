@@ -43,6 +43,6 @@ impl Shim for Service {
 
     async fn create_task_service(&self, _publisher: RemotePublisher) -> Task {
         // TODO: Invoke the Akari client
-        Task {}
+        Task::new()
     }
 }

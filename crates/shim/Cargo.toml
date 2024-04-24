@@ -4,7 +4,15 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+anyhow.workspace = true
+oci-spec.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 
 async-trait = "0.1.80"
 containerd-shim = { version = "0.7.1", features = ["async"] }
+
+libakari = { path = "../libakari" }
+vmm = { path = "../vmm" }

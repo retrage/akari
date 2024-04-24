@@ -283,9 +283,16 @@ dependencies = [
 name = "containerd-akari-shim"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "containerd-shim",
+ "libakari",
+ "oci-spec",
+ "serde",
+ "serde_json",
+ "thiserror",
  "tokio",
+ "vmm",
 ]
 
 [[package]]
