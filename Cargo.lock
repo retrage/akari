@@ -23,6 +23,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "env_logger",
+ "libakari",
  "log",
  "oci-spec",
  "serde",
@@ -280,22 +281,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "containerd-akari-shim"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "containerd-shim",
- "libakari",
- "oci-spec",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "vmm",
-]
-
-[[package]]
 name = "containerd-shim"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -324,6 +309,24 @@ dependencies = [
  "time",
  "tokio",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "containerd-shim-akari-v1"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "containerd-shim",
+ "libakari",
+ "log",
+ "oci-spec",
+ "serde",
+ "serde_json",
+ "tarpc",
+ "thiserror",
+ "tokio",
+ "vmm",
 ]
 
 [[package]]
@@ -792,6 +795,8 @@ name = "libakari"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "liboci-cli",
+ "oci-spec",
  "serde",
  "serde_json",
  "tarpc",
@@ -1506,6 +1511,9 @@ dependencies = [
  "futures",
  "libakari",
  "log",
+ "oci-spec",
+ "serde",
+ "serde_json",
  "tarpc",
  "thiserror",
  "tokio",

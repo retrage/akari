@@ -14,3 +14,5 @@ serde.workspace = true
 serde_json.workspace = true
 
 vsock = { git = "https://github.com/rust-vsock/vsock-rs", rev = "2223f5a" }
+
+libakari = { path = "../libakari" }

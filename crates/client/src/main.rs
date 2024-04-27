@@ -76,6 +76,7 @@ async fn main() -> Result<()> {
     let transport = serde_transport::unix::connect(vmm_sock_path, Json::default);
     let client = api::ApiClient::new(tarpc::client::Config::default(), transport.await?).spawn();
 
+    // TODO: Remove root_path from the commands
     match opts.subcmd {
         SubCommand::Standard(cmd) => match *cmd {
             StandardCmd::Create(create) => create::create(create, root_path, &client).await?,

@@ -5,10 +5,6 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::vm_config::MacosVmConfig;
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub enum Command {
     Create,
     Delete,
@@ -16,6 +12,9 @@ pub enum Command {
     Start,
     State,
     Connect(u32),
+    Disconnect(u32),
+    VsockSend(u32, Vec<u8>),
+    VsockRecv(u32),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -29,23 +28,21 @@ pub enum VmStatus {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Request {
-    pub container_id: String,
-    pub command: Command,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub vm_config: Option<MacosVmConfig>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub bundle: Option<PathBuf>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Response {
     pub container_id: String,
     pub status: VmStatus,
     pub pid: Option<i32>,
-    pub config: MacosVmConfig,
     pub bundle: PathBuf,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateRequest {
+    pub bundle: PathBuf,
+    pub rootfs: PathBuf,
+    pub stdin: Option<PathBuf>,
+    pub stdout: Option<PathBuf>,
+    pub stderr: Option<PathBuf>,
 }
 
 #[derive(thiserror::Error, Debug, Serialize, Deserialize)]
@@ -66,11 +63,7 @@ pub enum Error {
 
 #[tarpc::service]
 pub trait Api {
-    async fn create(
-        container_id: String,
-        vm_config: MacosVmConfig,
-        bundle: PathBuf,
-    ) -> Result<(), Error>;
+    async fn create(container_id: String, args: CreateRequest) -> Result<(), Error>;
     async fn delete(container_id: String) -> Result<(), Error>;
     async fn kill(container_id: String) -> Result<(), Error>;
     async fn start(container_id: String) -> Result<(), Error>;

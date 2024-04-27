@@ -11,14 +11,9 @@ use std::{
 };
 
 use anyhow::Result;
+use libakari::agent_api::Request;
 use oci_spec::runtime::Process;
-use serde::{Deserialize, Serialize};
 use vsock::{VsockAddr, VsockListener, VMADDR_CID_ANY};
-
-#[derive(Serialize, Deserialize)]
-enum Request {
-    Start(Process),
-}
 
 fn start(process: Process) -> Result<()> {
     let cwd = process.cwd();
@@ -55,6 +50,10 @@ fn start(process: Process) -> Result<()> {
 
 fn handle_request(request: Request) -> Result<()> {
     match request {
+        Request::Create(process) => {
+            log::info!("Creating process: {:?}", process);
+            start(process)
+        }
         Request::Start(process) => {
             log::info!("Starting process: {:?}", process);
             start(process)

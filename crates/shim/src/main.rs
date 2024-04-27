@@ -10,5 +10,11 @@ use service::Service;
 
 #[tokio::main]
 async fn main() {
-    run::<Service>("io.containerd.akari.v2", None).await;
+    // simplelog::WriteLogger::init(
+    //     simplelog::LevelFilter::Info,
+    //     simplelog::Config::default(),
+    //     std::fs::File::create("/tmp/shim.log").unwrap(),
+    // ).unwrap();
+
+    run::<Service>("io.containerd.akari.v1", None).await;
 }

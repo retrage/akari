@@ -7,66 +7,37 @@ use anyhow::Result;
 use liboci_cli::Create;
 use tarpc::context;
 
-use libakari::{
-    api::ApiClient,
-    vm_config::{load_vm_config, MacosVmSerial, MacosVmSharedDirectory},
-};
+use libakari::api::{ApiClient, CreateRequest};
 
 use super::error::Error;
 
-pub async fn create(args: Create, root_path: PathBuf, client: &ApiClient) -> Result<(), Error> {
-    let vm_config_path = root_path.join(format!("{}.json", args.container_id));
-    if vm_config_path.exists() {
-        return Err(Error::VmConfigAlreadyExists);
-    }
-
-    // Open base vm config in root_path
-    let base_vm_config_path = root_path.join("vm.json.base");
-    let mut vm_config = load_vm_config(&base_vm_config_path)?;
-
-    assert!(vm_config.shares.is_none());
-
+pub async fn create(args: Create, _root_path: PathBuf, client: &ApiClient) -> Result<(), Error> {
     let spec_path = args.bundle.join("config.json");
     if !spec_path.exists() {
         return Err(Error::ContainerConfigDoesNotExist);
     }
     let spec: oci_spec::runtime::Spec = serde_json::from_str(&std::fs::read_to_string(spec_path)?)?;
 
-    let (root_path, read_only) = if let Some(root) = spec.root() {
-        let root_path = if root.path().is_relative() {
+    let rootfs_path = if let Some(root) = spec.root() {
+        if root.path().is_relative() {
             args.bundle.join(root.path()).canonicalize()?
         } else {
             root.path().canonicalize()?
-        };
-        let read_only = root.readonly().unwrap_or(false);
-        (root_path, read_only)
+        }
     } else {
-        return Err(Error::RootPathIsNotSpecified);
+        return Err(Error::RootfsPathIsNotSpecified);
     };
 
-    let rootfs = MacosVmSharedDirectory {
-        path: root_path.clone(),
-        automount: true,
-        read_only,
+    let req = CreateRequest {
+        bundle: args.bundle.clone(),
+        rootfs: rootfs_path,
+        stdin: args.console_socket.clone(),
+        stdout: args.console_socket.clone(),
+        stderr: None,
     };
-    vm_config.shares = Some(vec![rootfs]);
-
-    // Handle console_socket
-    if let Some(console_socket) = args.console_socket {
-        let serial = MacosVmSerial {
-            path: console_socket,
-        };
-        vm_config.serial = Some(serial);
-    }
-
-    // TODO: spec.process
-    // TODO: spec.hostname
-    // TODO: spec.mounts
-
-    // TODO: Support pid_file
 
     client
-        .create(context::current(), args.container_id, vm_config, root_path)
+        .create(context::current(), args.container_id, req)
         .await
         .map_err(Error::RpcClient)?
         .map_err(Error::Api)?;

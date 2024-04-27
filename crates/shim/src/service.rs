@@ -9,6 +9,8 @@ use containerd_shim::{
     StartOpts,
 };
 
+use log::info;
+
 use crate::task::Task;
 
 pub struct Service {
@@ -26,14 +28,15 @@ impl Shim for Service {
     }
 
     async fn start_shim(&mut self, opts: StartOpts) -> Result<String, Error> {
+        // TODO: Check if the VM server is running
         let grouping = opts.id.clone();
         let address = spawn(opts, &grouping, Vec::new()).await?;
-        // TODO: launch the Akari server
+        info!("start shim at {}", address);
         Ok(address)
     }
 
     async fn delete_shim(&mut self) -> Result<DeleteResponse, Error> {
-        // TODO: delete the Akari server
+        info!("delete shim");
         Ok(DeleteResponse::default())
     }
 
@@ -42,7 +45,7 @@ impl Shim for Service {
     }
 
     async fn create_task_service(&self, _publisher: RemotePublisher) -> Task {
-        // TODO: Invoke the Akari client
-        Task::new()
+        info!("create task service");
+        Task::new().await
     }
 }
