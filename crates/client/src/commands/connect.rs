@@ -5,9 +5,8 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
+use libakari::vm_rpc::VmRpcClient;
 use tarpc::context;
-
-use crate::api::ApiClient;
 
 use super::error::Error;
 
@@ -18,7 +17,11 @@ pub struct Connect {
     port: u32,
 }
 
-pub async fn connect(args: Connect, _root_path: PathBuf, client: &ApiClient) -> Result<(), Error> {
+pub async fn connect(
+    args: Connect,
+    _root_path: PathBuf,
+    client: &VmRpcClient,
+) -> Result<(), Error> {
     client
         .connect(context::current(), args.container_id, args.port)
         .await

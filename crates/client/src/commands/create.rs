@@ -7,11 +7,11 @@ use anyhow::Result;
 use liboci_cli::Create;
 use tarpc::context;
 
-use libakari::api::{ApiClient, CreateRequest};
+use libakari::vm_rpc::{CreateRequest, VmRpcClient};
 
 use super::error::Error;
 
-pub async fn create(args: Create, _root_path: PathBuf, client: &ApiClient) -> Result<(), Error> {
+pub async fn create(args: Create, _root_path: PathBuf, client: &VmRpcClient) -> Result<(), Error> {
     let spec_path = args.bundle.join("config.json");
     if !spec_path.exists() {
         return Err(Error::ContainerConfigDoesNotExist);

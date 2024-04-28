@@ -11,7 +11,7 @@ use std::{
 };
 
 use anyhow::Result;
-use libakari::api::ContainerCommand;
+use libakari::vm_rpc::ContainerCommand;
 use oci_spec::runtime::Spec;
 use vsock::{VsockAddr, VsockListener, VMADDR_CID_ANY};
 

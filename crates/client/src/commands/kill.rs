@@ -4,14 +4,13 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
+use libakari::vm_rpc::VmRpcClient;
 use liboci_cli::Kill;
 use tarpc::context;
 
-use crate::api::ApiClient;
-
 use super::error::Error;
 
-pub async fn kill(args: Kill, _root_path: PathBuf, client: &ApiClient) -> Result<(), Error> {
+pub async fn kill(args: Kill, _root_path: PathBuf, client: &VmRpcClient) -> Result<(), Error> {
     client
         .kill(context::current(), args.container_id)
         .await

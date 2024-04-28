@@ -13,23 +13,23 @@ use containerd_shim::{
     DeleteResponse, Task as ShimTask, TtrpcContext, TtrpcResult,
 };
 use libakari::{
-    api::{self, CreateRequest},
     path::{root_path, vmm_sock_path},
+    vm_rpc::{self, CreateRequest},
 };
 use log::info;
 use tarpc::{context, serde_transport, tokio_serde::formats::Json};
 
-fn to_status(status: api::VmStatus) -> Status {
+fn to_status(status: vm_rpc::VmStatus) -> Status {
     match status {
-        api::VmStatus::Created => Status::CREATED,
-        api::VmStatus::Running => Status::RUNNING,
-        api::VmStatus::Stopped => Status::STOPPED,
+        vm_rpc::VmStatus::Created => Status::CREATED,
+        vm_rpc::VmStatus::Running => Status::RUNNING,
+        vm_rpc::VmStatus::Stopped => Status::STOPPED,
         _ => Status::UNKNOWN,
     }
 }
 
 pub struct Task {
-    client: api::ApiClient,
+    client: vm_rpc::VmRpcClient,
 }
 
 #[async_trait]
@@ -158,7 +158,8 @@ impl Task {
 
         let transport = serde_transport::unix::connect(vmm_sock_path, Json::default);
         let client =
-            api::ApiClient::new(tarpc::client::Config::default(), transport.await.unwrap()).spawn();
+            vm_rpc::VmRpcClient::new(tarpc::client::Config::default(), transport.await.unwrap())
+                .spawn();
 
         Task { client }
     }

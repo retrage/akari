@@ -69,7 +69,7 @@ pub enum Error {
 }
 
 #[tarpc::service]
-pub trait Api {
+pub trait VmRpc {
     async fn create(container_id: String, args: CreateRequest) -> Result<(), Error>;
     async fn delete(container_id: String) -> Result<(), Error>;
     async fn kill(container_id: String) -> Result<(), Error>;

@@ -12,7 +12,7 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
-    Api(#[from] libakari::api::Error),
+    Api(#[from] libakari::vm_rpc::Error),
     #[error(transparent)]
     Deserialize(#[from] serde_json::Error),
     #[error(transparent)]

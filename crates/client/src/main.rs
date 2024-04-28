@@ -11,8 +11,8 @@ use liboci_cli::StandardCmd;
 use tarpc::{serde_transport, tokio_serde::formats::Json};
 
 use libakari::{
-    api,
     path::{root_path, vmm_sock_path},
+    vm_rpc,
 };
 
 use commands::{connect, create, delete, kill, spec, start, state};
@@ -74,7 +74,8 @@ async fn main() -> Result<()> {
     let vmm_sock_path = vmm_sock_path(&root_path, opts.global.vmm_sock);
 
     let transport = serde_transport::unix::connect(vmm_sock_path, Json::default);
-    let client = api::ApiClient::new(tarpc::client::Config::default(), transport.await?).spawn();
+    let client =
+        vm_rpc::VmRpcClient::new(tarpc::client::Config::default(), transport.await?).spawn();
 
     // TODO: Remove root_path from the commands
     match opts.subcmd {

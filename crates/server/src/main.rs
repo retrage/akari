@@ -20,9 +20,9 @@ use clap::Parser;
 
 use futures::{future, stream::StreamExt};
 use libakari::{
-    api::{self, Api, ContainerCommand, Response, VmCommand},
     path::{root_path, vmm_sock_path},
     vm_config::{load_vm_config, MacosVmConfig, MacosVmSerial},
+    vm_rpc::{self, ContainerCommand, Response, VmCommand, VmRpc},
 };
 use log::{debug, info};
 use tarpc::{
@@ -52,7 +52,7 @@ struct Opts {
 #[derive(Debug)]
 struct ContainerState {
     bundle: PathBuf,
-    status: api::VmStatus, // TODO: Use ContainerStatus
+    status: vm_rpc::VmStatus, // TODO: Use ContainerStatus
     vsock_port: u32,
 }
 
@@ -66,13 +66,13 @@ struct ApiServer {
     data_rx: Arc<RwLock<VsockRx>>,
 }
 
-impl Api for ApiServer {
+impl VmRpc for ApiServer {
     async fn create(
         self,
         _context: ::tarpc::context::Context,
         container_id: String,
-        req: api::CreateRequest,
-    ) -> Result<(), api::Error> {
+        req: vm_rpc::CreateRequest,
+    ) -> Result<(), vm_rpc::Error> {
         info!(
             "create: container_id={}, bundle={:?}",
             container_id, req.bundle
@@ -81,7 +81,7 @@ impl Api for ApiServer {
         let mut state_map = self.state_map.write().await;
 
         if state_map.contains_key(&container_id) {
-            return Err(api::Error::ContainerAlreadyExists);
+            return Err(vm_rpc::Error::ContainerAlreadyExists);
         }
 
         let config_path = req.bundle.join("config.json");
@@ -99,7 +99,7 @@ impl Api for ApiServer {
         self.cmd_tx
             .send(VmCommand::Connect(port))
             .await
-            .map_err(|_| api::Error::VmCommandFailed)?;
+            .map_err(|_| vm_rpc::Error::VmCommandFailed)?;
 
         let cmd = ContainerCommand::Create(Box::new(config));
         let msg = serde_json::to_string(&cmd).unwrap().as_bytes().to_vec();
@@ -107,13 +107,13 @@ impl Api for ApiServer {
         self.cmd_tx
             .send(VmCommand::VsockSend(port, msg))
             .await
-            .map_err(|_| api::Error::VmCommandFailed)?;
+            .map_err(|_| vm_rpc::Error::VmCommandFailed)?;
         let mut data_rx = self.data_rx.write().await;
         let (port, _data) = data_rx.recv().await.unwrap();
 
         let state = ContainerState {
             bundle: req.bundle.clone(),
-            status: api::VmStatus::Creating,
+            status: vm_rpc::VmStatus::Creating,
             vsock_port: port,
         };
 
@@ -126,30 +126,32 @@ impl Api for ApiServer {
         self,
         _context: ::tarpc::context::Context,
         container_id: String,
-    ) -> Result<(), api::Error> {
+    ) -> Result<(), vm_rpc::Error> {
         info!("delete: container_id={}", container_id);
 
         let mut state_map = self.state_map.write().await;
         let state = state_map
             .get_mut(&container_id)
-            .ok_or(api::Error::ContainerNotFound)?;
+            .ok_or(vm_rpc::Error::ContainerNotFound)?;
 
         match state.status {
-            api::VmStatus::Created | api::VmStatus::Stopped => {
+            vm_rpc::VmStatus::Created | vm_rpc::VmStatus::Stopped => {
                 let cmd = ContainerCommand::Delete;
                 let msg = serde_json::to_string(&cmd).unwrap().as_bytes().to_vec();
                 self.cmd_tx
                     .send(VmCommand::VsockSend(state.vsock_port, msg))
                     .await
-                    .map_err(|_| api::Error::VmCommandFailed)?;
+                    .map_err(|_| vm_rpc::Error::VmCommandFailed)?;
                 self.cmd_tx
                     .send(VmCommand::Disconnect(state.vsock_port))
                     .await
-                    .map_err(|_| api::Error::VmCommandFailed)?;
+                    .map_err(|_| vm_rpc::Error::VmCommandFailed)?;
                 state_map.remove(&container_id);
                 Ok(())
             }
-            _ => Err(api::Error::UnpextectedContainerStatus(state.status.clone())),
+            _ => Err(vm_rpc::Error::UnpextectedContainerStatus(
+                state.status.clone(),
+            )),
         }
     }
 
@@ -157,26 +159,28 @@ impl Api for ApiServer {
         self,
         _context: ::tarpc::context::Context,
         container_id: String,
-    ) -> Result<(), api::Error> {
+    ) -> Result<(), vm_rpc::Error> {
         info!("kill: container_id={}", container_id);
 
         let mut state_map = self.state_map.write().await;
         let state = state_map
             .get_mut(&container_id)
-            .ok_or(api::Error::ContainerNotFound)?;
+            .ok_or(vm_rpc::Error::ContainerNotFound)?;
 
         match state.status {
-            api::VmStatus::Created | api::VmStatus::Running => {
+            vm_rpc::VmStatus::Created | vm_rpc::VmStatus::Running => {
                 let cmd = ContainerCommand::Kill;
                 let msg = serde_json::to_string(&cmd).unwrap().as_bytes().to_vec();
                 self.cmd_tx
                     .send(VmCommand::VsockSend(state.vsock_port, msg))
                     .await
-                    .map_err(|_| api::Error::VmCommandFailed)?;
-                state.status = api::VmStatus::Stopped;
+                    .map_err(|_| vm_rpc::Error::VmCommandFailed)?;
+                state.status = vm_rpc::VmStatus::Stopped;
                 Ok(())
             }
-            _ => Err(api::Error::UnpextectedContainerStatus(state.status.clone())),
+            _ => Err(vm_rpc::Error::UnpextectedContainerStatus(
+                state.status.clone(),
+            )),
         }
     }
 
@@ -184,26 +188,28 @@ impl Api for ApiServer {
         self,
         _context: ::tarpc::context::Context,
         container_id: String,
-    ) -> Result<(), api::Error> {
+    ) -> Result<(), vm_rpc::Error> {
         info!("start: container_id={}", container_id);
 
         let mut state_map = self.state_map.write().await;
         let state = state_map
             .get_mut(&container_id)
-            .ok_or(api::Error::ContainerNotFound)?;
+            .ok_or(vm_rpc::Error::ContainerNotFound)?;
 
         match state.status {
-            api::VmStatus::Created => {
+            vm_rpc::VmStatus::Created => {
                 let cmd = ContainerCommand::Start;
                 let msg = serde_json::to_string(&cmd).unwrap().as_bytes().to_vec();
                 self.cmd_tx
                     .send(VmCommand::VsockSend(state.vsock_port, msg))
                     .await
-                    .map_err(|_| api::Error::VmCommandFailed)?;
-                state.status = api::VmStatus::Running;
+                    .map_err(|_| vm_rpc::Error::VmCommandFailed)?;
+                state.status = vm_rpc::VmStatus::Running;
                 Ok(())
             }
-            _ => Err(api::Error::UnpextectedContainerStatus(state.status.clone())),
+            _ => Err(vm_rpc::Error::UnpextectedContainerStatus(
+                state.status.clone(),
+            )),
         }
     }
 
@@ -211,23 +217,23 @@ impl Api for ApiServer {
         self,
         _context: ::tarpc::context::Context,
         container_id: String,
-    ) -> Result<Response, api::Error> {
+    ) -> Result<Response, vm_rpc::Error> {
         info!("state: container_id={}", container_id);
 
         let state_map = self.state_map.read().await;
         let state = state_map
             .get(&container_id)
-            .ok_or(api::Error::ContainerNotFound)?;
+            .ok_or(vm_rpc::Error::ContainerNotFound)?;
 
         let cmd = ContainerCommand::State;
         let msg = serde_json::to_string(&cmd).unwrap().as_bytes().to_vec();
         self.cmd_tx
             .send(VmCommand::VsockSend(state.vsock_port, msg))
             .await
-            .map_err(|_| api::Error::VmCommandFailed)?;
+            .map_err(|_| vm_rpc::Error::VmCommandFailed)?;
 
         // TODO: Get the actual PID
-        let response = api::Response {
+        let response = vm_rpc::Response {
             container_id,
             status: state.status.clone(),
             pid: None,
@@ -241,20 +247,22 @@ impl Api for ApiServer {
         _context: ::tarpc::context::Context,
         container_id: String,
         _port: u32,
-    ) -> Result<(), api::Error> {
+    ) -> Result<(), vm_rpc::Error> {
         info!("connect: container_id={}", container_id);
 
         let mut state_map = self.state_map.write().await;
         let state = state_map
             .get_mut(&container_id)
-            .ok_or(api::Error::ContainerNotFound)?;
+            .ok_or(vm_rpc::Error::ContainerNotFound)?;
 
         match state.status {
-            api::VmStatus::Running => {
+            vm_rpc::VmStatus::Running => {
                 // TODO: Implement the container connect process
                 Ok(())
             }
-            _ => Err(api::Error::UnpextectedContainerStatus(state.status.clone())),
+            _ => Err(vm_rpc::Error::UnpextectedContainerStatus(
+                state.status.clone(),
+            )),
         }
     }
 }
@@ -271,12 +279,12 @@ async fn handle_cmd(
             .await
             .ok_or_else(|| anyhow::anyhow!("Command channel closed"))?;
         match cmd {
-            api::VmCommand::Start => vm.start()?,
-            api::VmCommand::Kill => vm.kill()?,
-            api::VmCommand::Connect(port) => vm.connect(port)?,
-            api::VmCommand::Disconnect(port) => vm.disconnect(port)?,
-            api::VmCommand::VsockSend(port, data) => vm.vsock_send(port, data)?,
-            api::VmCommand::VsockRecv(port) => {
+            vm_rpc::VmCommand::Start => vm.start()?,
+            vm_rpc::VmCommand::Kill => vm.kill()?,
+            vm_rpc::VmCommand::Connect(port) => vm.connect(port)?,
+            vm_rpc::VmCommand::Disconnect(port) => vm.disconnect(port)?,
+            vm_rpc::VmCommand::VsockSend(port, data) => vm.vsock_send(port, data)?,
+            vm_rpc::VmCommand::VsockRecv(port) => {
                 let mut data = Vec::new();
                 vm.vsock_recv(port, &mut data)?;
                 data_tx.send((port, data)).await?;
@@ -316,7 +324,7 @@ async fn create_vm(
     mpsc::Sender<VmCommand>,
     mpsc::Receiver<(u32, Vec<u8>)>,
 )> {
-    let (cmd_tx, mut cmd_rx) = mpsc::channel::<api::VmCommand>(8);
+    let (cmd_tx, mut cmd_rx) = mpsc::channel::<vm_rpc::VmCommand>(8);
     let (mut data_tx, data_rx) = mpsc::channel::<(u32, Vec<u8>)>(8);
 
     let thread = tokio::spawn(async move { vm_thread(vm_config, &mut cmd_rx, &mut data_tx) });
@@ -368,7 +376,7 @@ async fn main() -> Result<()> {
     let data_rx = Arc::new(RwLock::new(data_rx));
 
     info!("Starting VM");
-    cmd_tx.send(api::VmCommand::Start).await?;
+    cmd_tx.send(vm_rpc::VmCommand::Start).await?;
 
     info!("Listening on: {:?}", vmm_sock_path);
     let mut listener = serde_transport::unix::listen(vmm_sock_path, Json::default).await?;

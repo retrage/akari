@@ -4,11 +4,12 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::Result;
+use libakari::vm_rpc::VmRpcClient;
 use liboci_cli::State;
 use serde::{Deserialize, Serialize};
 use tarpc::context;
 
-use crate::api::{self, ApiClient};
+use crate::vm_rpc;
 
 use super::error::Error;
 
@@ -25,13 +26,13 @@ enum ContainerStatus {
     Stopped,
 }
 
-impl From<api::VmStatus> for ContainerStatus {
-    fn from(status: api::VmStatus) -> Self {
+impl From<vm_rpc::VmStatus> for ContainerStatus {
+    fn from(status: vm_rpc::VmStatus) -> Self {
         match status {
-            api::VmStatus::Creating => ContainerStatus::Creating,
-            api::VmStatus::Created => ContainerStatus::Created,
-            api::VmStatus::Running => ContainerStatus::Running,
-            api::VmStatus::Stopped => ContainerStatus::Stopped,
+            vm_rpc::VmStatus::Creating => ContainerStatus::Creating,
+            vm_rpc::VmStatus::Created => ContainerStatus::Created,
+            vm_rpc::VmStatus::Running => ContainerStatus::Running,
+            vm_rpc::VmStatus::Stopped => ContainerStatus::Stopped,
         }
     }
 }
@@ -69,7 +70,7 @@ impl ContainerState {
     }
 }
 
-pub async fn state(args: State, _root_path: PathBuf, client: &ApiClient) -> Result<(), Error> {
+pub async fn state(args: State, _root_path: PathBuf, client: &VmRpcClient) -> Result<(), Error> {
     let response = client
         .state(context::current(), args.container_id)
         .await
