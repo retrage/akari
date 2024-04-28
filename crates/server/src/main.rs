@@ -20,9 +20,10 @@ use clap::Parser;
 
 use futures::{future, stream::StreamExt};
 use libakari::{
+    container_rpc::ContainerCommand,
     path::{root_path, vmm_sock_path},
     vm_config::{load_vm_config, MacosVmConfig, MacosVmSerial},
-    vm_rpc::{self, ContainerCommand, Response, VmCommand, VmRpc},
+    vm_rpc::{self, Response, VmCommand, VmRpc},
 };
 use log::{debug, info};
 use tarpc::{

@@ -16,16 +16,6 @@ pub enum VmCommand {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum ContainerCommand {
-    Create(Box<oci_spec::runtime::Spec>),
-    Delete,
-    Kill,
-    Start,
-    State,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub enum VmStatus {
     Creating,
     Created,
