@@ -11,11 +11,12 @@ use std::{
 };
 
 use anyhow::Result;
-use libakari::agent_api::Request;
-use oci_spec::runtime::Process;
+use libakari::api::ContainerCommand;
+use oci_spec::runtime::Spec;
 use vsock::{VsockAddr, VsockListener, VMADDR_CID_ANY};
 
-fn start(process: Process) -> Result<()> {
+fn create(config: Spec) -> Result<()> {
+    let process = config.process().as_ref().unwrap();
     let cwd = process.cwd();
     let args = process.args().as_ref().unwrap();
     let env = process.env();
@@ -48,16 +49,13 @@ fn start(process: Process) -> Result<()> {
     Ok(())
 }
 
-fn handle_request(request: Request) -> Result<()> {
-    match request {
-        Request::Create(process) => {
-            log::info!("Creating process: {:?}", process);
-            start(process)
-        }
-        Request::Start(process) => {
-            log::info!("Starting process: {:?}", process);
-            start(process)
-        }
+fn handle_cmd(cmd: ContainerCommand) -> Result<()> {
+    match cmd {
+        ContainerCommand::Create(config) => create(*config),
+        ContainerCommand::Delete => todo!(),
+        ContainerCommand::Kill => todo!(),
+        ContainerCommand::Start => todo!(),
+        ContainerCommand::State => todo!(),
     }
 }
 
@@ -73,8 +71,8 @@ fn main() -> Result<()> {
 
         let mut buf = [0; 1024];
         let n = stream.read(&mut buf)?;
-        let request = serde_json::from_slice(&buf[..n])?;
-        handle_request(request)?;
+        let cmd = serde_json::from_slice(&buf[..n])?;
+        handle_cmd(cmd)?;
     }
 
     Ok(())

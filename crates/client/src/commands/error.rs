@@ -3,13 +3,8 @@
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[allow(dead_code)]
-    #[error("VM configuration already exists")]
-    VmConfigAlreadyExists,
-    #[allow(dead_code)]
     #[error("Container configuration does not exist")]
     ContainerConfigDoesNotExist,
-    #[allow(dead_code)]
     #[error("Root path is not specified")]
     RootfsPathIsNotSpecified,
     #[error(transparent)]

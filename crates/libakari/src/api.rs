@@ -5,16 +5,23 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-pub enum Command {
-    Create,
-    Delete,
-    Kill,
+pub enum VmCommand {
     Start,
-    State,
+    Kill,
     Connect(u32),
     Disconnect(u32),
     VsockSend(u32, Vec<u8>),
     VsockRecv(u32),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ContainerCommand {
+    Create(Box<oci_spec::runtime::Spec>),
+    Delete,
+    Kill,
+    Start,
+    State,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
