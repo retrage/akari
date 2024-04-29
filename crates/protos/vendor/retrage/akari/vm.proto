@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2024 Akira Moroo
+
+syntax = "proto3";
+
+package grpc;
+
+import "google/protobuf/empty.proto";
+
+message CreateArgs {
+    string bundle = 1;
+    string rootfs = 2;
+    optional string stdin = 3;
+    optional string stdout = 4;
+    optional string stderr = 5;
+}
+
+message CreateRequest {
+	string container_id = 1;
+	CreateArgs args = 2;
+}
+
+message DeleteRequest {
+	string container_id = 1;
+}
+
+message KillRequest {
+	string container_id = 1;
+}
+
+message StartRequest {
+	string container_id = 1;
+}
+
+message StateRequest {
+	string container_id = 1;
+}
+
+message ConnectRequest {
+	string container_id = 1;
+	uint32 port = 2;
+}
+
+service VmService {
+    rpc Create(CreateRequest) returns (google.protobuf.Empty);
+    rpc Delete(DeleteRequest) returns (google.protobuf.Empty);
+    rpc Kill(KillRequest) returns (google.protobuf.Empty);
+    rpc Start(StartRequest) returns (google.protobuf.Empty);
+    rpc State(StateRequest) returns (google.protobuf.Empty);
+    rpc Connect(ConnectRequest) returns (google.protobuf.Empty);
+}
+

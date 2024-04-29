@@ -1,0 +1,16 @@
+[package]
+name = "protos"
+version.workspace = true
+edition.workspace = true
+
+[features]
+default = ["async"]
+async = ["ttrpc/async", "async-trait"]
+
+[dependencies]
+async-trait = { version = "0.1.80", optional = true }
+protobuf = "3.1"
+ttrpc.workspace = true
+
+[build-dependencies]
+ttrpc-codegen = "0.4.2"

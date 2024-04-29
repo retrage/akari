@@ -1,10 +1,11 @@
 [workspace]
 members = [
     "crates/agent",
-    "crates/shim",
     "crates/client",
     "crates/libakari",
+    "crates/protos",
     "crates/server",
+    "crates/shim",
     "crates/vmm",
 ]
 resolver = "2"
@@ -29,5 +30,6 @@ tarpc = { version = "0.34.0", features = [
     "serde-transport-json",
     "unix",
 ] }
-tokio = { version = "1.37.0", features = ["macros", "net", "rt-multi-thread"] }
 thiserror = "1.0.59"
+tokio = { version = "1.37.0", features = ["macros", "net", "rt-multi-thread"] }
+ttrpc = { version = "0.8.1", features = ["async"] }

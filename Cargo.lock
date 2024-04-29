@@ -1363,6 +1363,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "protos"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "protobuf 3.4.0",
+ "ttrpc",
+ "ttrpc-codegen",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
