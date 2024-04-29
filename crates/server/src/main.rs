@@ -16,8 +16,10 @@ use std::{
 };
 
 use anyhow::Result;
+use async_trait::async_trait;
 use clap::Parser;
 
+use ::ttrpc::{asynchronous::TtrpcContext, Error};
 use futures::{future, stream::StreamExt};
 use libakari::{
     container_rpc::ContainerCommand,
@@ -26,6 +28,15 @@ use libakari::{
     vm_rpc::{self, Response, VmCommand, VmRpc},
 };
 use log::{debug, info};
+use protos::{
+    types::empty::Empty,
+    vm::{
+        vm::{
+            ConnectRequest, CreateRequest, DeleteRequest, KillRequest, StartRequest, StateRequest,
+        },
+        vm_ttrpc_async::VmService,
+    },
+};
 use tarpc::{
     serde_transport,
     server::{self, Channel},
@@ -67,10 +78,9 @@ struct ApiServer {
     data_rx: Arc<RwLock<VsockRx>>,
 }
 
-impl VmRpc for ApiServer {
-    async fn create(
-        self,
-        _context: ::tarpc::context::Context,
+impl ApiServer {
+    async fn do_create(
+        &self,
         container_id: String,
         req: vm_rpc::CreateRequest,
     ) -> Result<(), vm_rpc::Error> {
@@ -123,11 +133,7 @@ impl VmRpc for ApiServer {
         Ok(())
     }
 
-    async fn delete(
-        self,
-        _context: ::tarpc::context::Context,
-        container_id: String,
-    ) -> Result<(), vm_rpc::Error> {
+    async fn do_delete(&self, container_id: String) -> Result<(), vm_rpc::Error> {
         info!("delete: container_id={}", container_id);
 
         let mut state_map = self.state_map.write().await;
@@ -156,11 +162,7 @@ impl VmRpc for ApiServer {
         }
     }
 
-    async fn kill(
-        self,
-        _context: ::tarpc::context::Context,
-        container_id: String,
-    ) -> Result<(), vm_rpc::Error> {
+    async fn do_kill(&self, container_id: String) -> Result<(), vm_rpc::Error> {
         info!("kill: container_id={}", container_id);
 
         let mut state_map = self.state_map.write().await;
@@ -185,11 +187,7 @@ impl VmRpc for ApiServer {
         }
     }
 
-    async fn start(
-        self,
-        _context: ::tarpc::context::Context,
-        container_id: String,
-    ) -> Result<(), vm_rpc::Error> {
+    async fn do_start(&self, container_id: String) -> Result<(), vm_rpc::Error> {
         info!("start: container_id={}", container_id);
 
         let mut state_map = self.state_map.write().await;
@@ -214,11 +212,7 @@ impl VmRpc for ApiServer {
         }
     }
 
-    async fn state(
-        self,
-        _context: ::tarpc::context::Context,
-        container_id: String,
-    ) -> Result<Response, vm_rpc::Error> {
+    async fn do_state(&self, container_id: String) -> Result<Response, vm_rpc::Error> {
         info!("state: container_id={}", container_id);
 
         let state_map = self.state_map.read().await;
@@ -243,12 +237,7 @@ impl VmRpc for ApiServer {
         Ok(response)
     }
 
-    async fn connect(
-        self,
-        _context: ::tarpc::context::Context,
-        container_id: String,
-        _port: u32,
-    ) -> Result<(), vm_rpc::Error> {
+    async fn do_connect(&self, container_id: String, _port: u32) -> Result<(), vm_rpc::Error> {
         info!("connect: container_id={}", container_id);
 
         let mut state_map = self.state_map.write().await;
@@ -264,6 +253,116 @@ impl VmRpc for ApiServer {
             _ => Err(vm_rpc::Error::UnpextectedContainerStatus(
                 state.status.clone(),
             )),
+        }
+    }
+}
+
+impl VmRpc for ApiServer {
+    async fn create(
+        self,
+        _context: ::tarpc::context::Context,
+        container_id: String,
+        req: vm_rpc::CreateRequest,
+    ) -> Result<(), vm_rpc::Error> {
+        self.do_create(container_id, req).await
+    }
+
+    async fn delete(
+        self,
+        _context: ::tarpc::context::Context,
+        container_id: String,
+    ) -> Result<(), vm_rpc::Error> {
+        self.do_delete(container_id).await
+    }
+
+    async fn kill(
+        self,
+        _context: ::tarpc::context::Context,
+        container_id: String,
+    ) -> Result<(), vm_rpc::Error> {
+        self.do_kill(container_id).await
+    }
+
+    async fn start(
+        self,
+        _context: ::tarpc::context::Context,
+        container_id: String,
+    ) -> Result<(), vm_rpc::Error> {
+        self.do_start(container_id).await
+    }
+
+    async fn state(
+        self,
+        _context: ::tarpc::context::Context,
+        container_id: String,
+    ) -> Result<Response, vm_rpc::Error> {
+        self.do_state(container_id).await
+    }
+
+    async fn connect(
+        self,
+        _context: ::tarpc::context::Context,
+        container_id: String,
+        port: u32,
+    ) -> Result<(), vm_rpc::Error> {
+        self.do_connect(container_id, port).await
+    }
+}
+
+#[async_trait]
+impl VmService for ApiServer {
+    async fn create(&self, _ctx: &TtrpcContext, req: CreateRequest) -> ttrpc::Result<Empty> {
+        let args = req.args();
+        let bundle = args.bundle().into();
+        let rootfs = args.rootfs().into();
+        let stdin = args.stdin.as_ref().map(|stdin| stdin.into());
+        let stdout = args.stdout.as_ref().map(|stdout| stdout.into());
+        let stderr = args.stderr.as_ref().map(|stderr| stderr.into());
+        let create_req = vm_rpc::CreateRequest {
+            bundle,
+            rootfs,
+            stdin,
+            stdout,
+            stderr,
+        };
+        match self.do_create(req.container_id, create_req).await {
+            Ok(_) => Ok(Empty::new()),
+            Err(e) => Err(Error::Others(e.to_string())),
+        }
+    }
+
+    async fn delete(&self, _ctx: &TtrpcContext, req: DeleteRequest) -> ttrpc::Result<Empty> {
+        match self.do_delete(req.container_id).await {
+            Ok(_) => Ok(Empty::new()),
+            Err(e) => Err(Error::Others(e.to_string())),
+        }
+    }
+
+    async fn kill(&self, _ctx: &TtrpcContext, req: KillRequest) -> ttrpc::Result<Empty> {
+        match self.do_kill(req.container_id).await {
+            Ok(_) => Ok(Empty::new()),
+            Err(e) => Err(Error::Others(e.to_string())),
+        }
+    }
+
+    async fn start(&self, _ctx: &TtrpcContext, req: StartRequest) -> ttrpc::Result<Empty> {
+        match self.do_start(req.container_id).await {
+            Ok(_) => Ok(Empty::new()),
+            Err(e) => Err(Error::Others(e.to_string())),
+        }
+    }
+
+    async fn state(&self, _ctx: &TtrpcContext, req: StateRequest) -> ttrpc::Result<Empty> {
+        match self.do_state(req.container_id).await {
+            Ok(_) => Ok(Empty::new()),
+            Err(e) => Err(Error::Others(e.to_string())),
+        }
+    }
+
+    async fn connect(&self, _ctx: &TtrpcContext, req: ConnectRequest) -> ttrpc::Result<Empty> {
+        match self.do_connect(req.container_id, req.port).await {
+            Ok(_) => Ok(Empty::new()),
+            Err(e) => Err(Error::Others(e.to_string())),
         }
     }
 }

@@ -1516,17 +1516,20 @@ name = "server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "clap",
  "env_logger",
  "futures",
  "libakari",
  "log",
  "oci-spec",
+ "protos",
  "serde",
  "serde_json",
  "tarpc",
  "thiserror",
  "tokio",
+ "ttrpc",
  "vmm",
 ]
 

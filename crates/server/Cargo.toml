@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+async-trait.workspace = true
 clap.workspace = true
 env_logger.workspace = true
 futures.workspace = true
@@ -15,6 +16,8 @@ serde_json.workspace = true
 tarpc.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+ttrpc.workspace = true
 
 libakari = { path = "../libakari" }
+protos = { path = "../protos" }
 vmm = { path = "../vmm" }
