@@ -8,7 +8,7 @@ default = ["async"]
 async = ["ttrpc/async", "async-trait"]
 
 [dependencies]
-async-trait = { version = "0.1.80", optional = true }
+async-trait = { workspace = true, optional = true }
 protobuf = "3.1"
 ttrpc.workspace = true
 
