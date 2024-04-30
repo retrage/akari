@@ -16,5 +16,5 @@ pub enum Error {
     #[error(transparent)]
     Deserialize(#[from] serde_json::Error),
     #[error(transparent)]
-    RpcClient(#[from] tarpc::client::RpcError),
+    RpcClient(#[from] ttrpc::Error),
 }

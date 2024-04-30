@@ -64,8 +64,6 @@ pub enum Error {
     IoError(#[from] std::io::Error),
     #[error(transparent)]
     DeserializeError(#[from] serde_json::Error),
-    #[error(transparent)]
-    RpcClientError(#[from] tarpc::client::RpcError),
 }
 
 pub fn load_vm_config(path: &Path) -> Result<MacosVmConfig, Error> {

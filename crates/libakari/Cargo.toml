@@ -9,5 +9,4 @@ liboci-cli.workspace = true
 oci-spec.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-tarpc.workspace = true
 thiserror.workspace = true

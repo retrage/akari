@@ -5,9 +5,12 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+// Command to control the VM.
 pub enum VmCommand {
     Start,
-    Kill,
+    Stop,
+    Pause,
+    Resume,
     Connect(u32),
     Disconnect(u32),
     VsockSend(u32, Vec<u8>),
@@ -56,14 +59,4 @@ pub enum Error {
     ThreadNotFound,
     #[error("Failed to send command")]
     VmCommandFailed,
-}
-
-#[tarpc::service]
-pub trait VmRpc {
-    async fn create(container_id: String, args: CreateRequest) -> Result<(), Error>;
-    async fn delete(container_id: String) -> Result<(), Error>;
-    async fn kill(container_id: String) -> Result<(), Error>;
-    async fn start(container_id: String) -> Result<(), Error>;
-    async fn state(container_id: String) -> Result<Response, Error>;
-    async fn connect(container_id: String, port: u32) -> Result<(), Error>;
 }

@@ -7,15 +7,12 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
+use containerd_shim::protos::shim::shim_ttrpc_async::TaskClient;
 use liboci_cli::StandardCmd;
-use tarpc::{serde_transport, tokio_serde::formats::Json};
-
-use libakari::{
-    path::{root_path, vmm_sock_path},
-    vm_rpc,
-};
+use ttrpc::asynchronous::Client;
 
 use commands::{connect, create, delete, kill, spec, start, state};
+use libakari::path::{aux_sock_path, root_path};
 
 #[derive(clap::Parser, Debug)]
 pub enum CommonCmd {
@@ -71,24 +68,21 @@ async fn main() -> Result<()> {
     let opts = Opts::parse();
 
     let root_path = root_path(opts.global.root)?;
-    let vmm_sock_path = vmm_sock_path(&root_path, opts.global.vmm_sock);
+    let aux_sock_path = aux_sock_path(&root_path, opts.global.vmm_sock);
 
-    let transport = serde_transport::unix::connect(vmm_sock_path, Json::default);
-    let client =
-        vm_rpc::VmRpcClient::new(tarpc::client::Config::default(), transport.await?).spawn();
+    let client = TaskClient::new(Client::connect(aux_sock_path.to_str().unwrap())?);
 
-    // TODO: Remove root_path from the commands
     match opts.subcmd {
         SubCommand::Standard(cmd) => match *cmd {
-            StandardCmd::Create(create) => create::create(create, root_path, &client).await?,
-            StandardCmd::Delete(delete) => delete::delete(delete, root_path, &client).await?,
-            StandardCmd::Start(start) => start::start(start, root_path, &client).await?,
-            StandardCmd::Kill(kill) => kill::kill(kill, root_path, &client).await?,
-            StandardCmd::State(state) => state::state(state, root_path, &client).await?,
+            StandardCmd::Create(create) => create::create(create, &client).await?,
+            StandardCmd::Delete(delete) => delete::delete(delete, &client).await?,
+            StandardCmd::Start(start) => start::start(start, &client).await?,
+            StandardCmd::Kill(kill) => kill::kill(kill, &client).await?,
+            StandardCmd::State(state) => state::state(state, &client).await?,
         },
         SubCommand::Common(cmd) => match *cmd {
             CommonCmd::Spec(spec) => spec::spec(spec)?,
-            CommonCmd::Connect(connect) => connect::connect(connect, root_path, &client).await?,
+            CommonCmd::Connect(connect) => connect::connect(connect, &client).await?,
         },
     };
 

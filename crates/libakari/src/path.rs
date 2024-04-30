@@ -8,6 +8,7 @@ use std::{
 
 use anyhow::Result;
 
+// Return the root path of the runtime.
 pub fn root_path(path: Option<PathBuf>) -> Result<PathBuf> {
     match path {
         Some(path) => Ok(canonicalize(path)?),
@@ -23,10 +24,11 @@ pub fn root_path(path: Option<PathBuf>) -> Result<PathBuf> {
     }
 }
 
-pub fn vmm_sock_path(root_path: &Path, path: Option<PathBuf>) -> PathBuf {
+// Return the path to the auxiliary socket file.
+pub fn aux_sock_path(root_path: &Path, path: Option<PathBuf>) -> PathBuf {
     path.unwrap_or_else(|| {
-        let mut default_vmm_sock_path = root_path.to_path_buf();
-        default_vmm_sock_path.push("vmm.sock");
-        default_vmm_sock_path
+        let mut default_aux_sock_path = root_path.to_path_buf();
+        default_aux_sock_path.push("aux.sock");
+        default_aux_sock_path
     })
 }

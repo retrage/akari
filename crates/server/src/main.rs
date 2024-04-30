@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
-//! # Akari Virtual Machine
-//! This is a daemon that listens for requests from the akari OCI runtime to manage containers.
+//! # Akari Server
+//! This is a daemon that manages a VM and containers running inside the VM.
+//! It creates and starts a macOS VM using the `vmm` crate on the startup.
+//! It listens on a Unix domain socket for incoming requests to manage containers.
+//! It forwards the requests to the in-VM agent using the `vmm` crate.
 
 use std::{
     collections::HashMap,
-    future::Future,
     os::{
         fd::AsRawFd,
         unix::{fs::FileTypeExt, net::UnixStream},
@@ -19,13 +21,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use clap::Parser;
 
-use ::ttrpc::{asynchronous::TtrpcContext, Error};
-use futures::{future, stream::StreamExt};
 use libakari::{
     container_rpc::ContainerCommand,
-    path::{root_path, vmm_sock_path},
+    path::{aux_sock_path, root_path},
     vm_config::{load_vm_config, MacosVmConfig, MacosVmSerial},
-    vm_rpc::{self, Response, VmCommand, VmRpc},
+    vm_rpc::{self, Response, VmCommand},
 };
 use log::{debug, info};
 use protos::{
@@ -37,15 +37,14 @@ use protos::{
         vm_ttrpc_async::VmService,
     },
 };
-use tarpc::{
-    serde_transport,
-    server::{self, Channel},
-    tokio_serde::formats::Json,
-};
 use tokio::{
     runtime::Runtime,
     sync::{mpsc, RwLock},
     task::JoinHandle,
+};
+use ttrpc::{
+    asynchronous::{Server, TtrpcContext},
+    Error,
 };
 
 #[derive(clap::Parser)]
@@ -53,9 +52,9 @@ struct Opts {
     /// root directory to store container state
     #[clap(short, long)]
     pub root: Option<PathBuf>,
-    /// Specify the path to the VMM socket
+    /// Specify the path to the aux socket
     #[clap(short, long)]
-    vmm_sock: Option<PathBuf>,
+    aux_sock: Option<PathBuf>,
     /// Specify the path to the VM console socket
     #[clap(short, long)]
     console_sock: Option<PathBuf>,
@@ -72,13 +71,14 @@ type ContainerStateMap = HashMap<String, ContainerState>;
 type VsockRx = mpsc::Receiver<(u32, Vec<u8>)>;
 
 #[derive(Clone)]
-struct ApiServer {
+struct ContainerService {
     state_map: Arc<RwLock<ContainerStateMap>>,
     cmd_tx: mpsc::Sender<VmCommand>,
     data_rx: Arc<RwLock<VsockRx>>,
 }
 
-impl ApiServer {
+impl ContainerService {
+    // Send a command to the in-VM agent to create a container.
     async fn do_create(
         &self,
         container_id: String,
@@ -257,60 +257,8 @@ impl ApiServer {
     }
 }
 
-impl VmRpc for ApiServer {
-    async fn create(
-        self,
-        _context: ::tarpc::context::Context,
-        container_id: String,
-        req: vm_rpc::CreateRequest,
-    ) -> Result<(), vm_rpc::Error> {
-        self.do_create(container_id, req).await
-    }
-
-    async fn delete(
-        self,
-        _context: ::tarpc::context::Context,
-        container_id: String,
-    ) -> Result<(), vm_rpc::Error> {
-        self.do_delete(container_id).await
-    }
-
-    async fn kill(
-        self,
-        _context: ::tarpc::context::Context,
-        container_id: String,
-    ) -> Result<(), vm_rpc::Error> {
-        self.do_kill(container_id).await
-    }
-
-    async fn start(
-        self,
-        _context: ::tarpc::context::Context,
-        container_id: String,
-    ) -> Result<(), vm_rpc::Error> {
-        self.do_start(container_id).await
-    }
-
-    async fn state(
-        self,
-        _context: ::tarpc::context::Context,
-        container_id: String,
-    ) -> Result<Response, vm_rpc::Error> {
-        self.do_state(container_id).await
-    }
-
-    async fn connect(
-        self,
-        _context: ::tarpc::context::Context,
-        container_id: String,
-        port: u32,
-    ) -> Result<(), vm_rpc::Error> {
-        self.do_connect(container_id, port).await
-    }
-}
-
 #[async_trait]
-impl VmService for ApiServer {
+impl VmService for ContainerService {
     async fn create(&self, _ctx: &TtrpcContext, req: CreateRequest) -> ttrpc::Result<Empty> {
         let args = req.args();
         let bundle = args.bundle().into();
@@ -380,7 +328,9 @@ async fn handle_cmd(
             .ok_or_else(|| anyhow::anyhow!("Command channel closed"))?;
         match cmd {
             vm_rpc::VmCommand::Start => vm.start()?,
-            vm_rpc::VmCommand::Kill => vm.kill()?,
+            vm_rpc::VmCommand::Stop => vm.kill()?,
+            vm_rpc::VmCommand::Pause => todo!("Pause"),
+            vm_rpc::VmCommand::Resume => todo!("Resume"),
             vm_rpc::VmCommand::Connect(port) => vm.connect(port)?,
             vm_rpc::VmCommand::Disconnect(port) => vm.disconnect(port)?,
             vm_rpc::VmCommand::VsockSend(port, data) => vm.vsock_send(port, data)?,
@@ -432,35 +382,32 @@ async fn create_vm(
     Ok((thread, cmd_tx, data_rx))
 }
 
-async fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
-    tokio::spawn(fut);
-}
-
 #[tokio::main]
-
 async fn main() -> Result<()> {
     env_logger::init();
 
     let opts = Opts::parse();
 
     let root_path = root_path(opts.root)?;
-    let vmm_sock_path = vmm_sock_path(&root_path, opts.vmm_sock);
+    let aux_sock_path = aux_sock_path(&root_path, opts.aux_sock);
 
-    match vmm_sock_path.try_exists() {
+    match aux_sock_path.try_exists() {
         Ok(exist) => {
             if exist {
-                let metadata = std::fs::metadata(&vmm_sock_path)?;
+                let metadata = std::fs::metadata(&aux_sock_path)?;
                 if metadata.file_type().is_socket() {
-                    std::fs::remove_file(&vmm_sock_path)?;
+                    std::fs::remove_file(&aux_sock_path)?;
                 } else {
-                    anyhow::bail!("VMM socket path exists and is not a socket");
+                    anyhow::bail!("The aux socket path exists and is not a socket");
                 }
             }
         }
         Err(e) => {
-            anyhow::bail!("Failed to check if VMM socket path exists: {}", e);
+            anyhow::bail!("Failed to check if the aux socket path exists: {}", e);
         }
     }
+
+    // TODO: Create a socket for the VM management
 
     let console_path = opts
         .console_sock
@@ -470,38 +417,29 @@ async fn main() -> Result<()> {
     let mut vm_config = load_vm_config(&vm_config_path)?;
     vm_config.serial = Some(MacosVmSerial { path: console_path });
 
+    info!("Creating VM from config file: {:?}", vm_config_path);
     let (thread, cmd_tx, data_rx) = create_vm(vm_config).await?;
-    info!("VM thread created");
 
     let data_rx = Arc::new(RwLock::new(data_rx));
 
     info!("Starting VM");
     cmd_tx.send(vm_rpc::VmCommand::Start).await?;
 
-    info!("Listening on: {:?}", vmm_sock_path);
-    let mut listener = serde_transport::unix::listen(vmm_sock_path, Json::default).await?;
-    listener.config_mut().max_frame_length(usize::MAX);
+    info!("Listening on: {:?}", aux_sock_path);
+    let v = Box::new(ContainerService {
+        state_map: Arc::new(RwLock::new(HashMap::new())),
+        cmd_tx,
+        data_rx: data_rx.clone(),
+    }) as Box<dyn protos::vm::vm_ttrpc_async::VmService + Sync + Send>;
+    let v = Arc::new(v);
+    let vservice = protos::vm::vm_ttrpc_async::create_vm_service(v);
 
-    let state_map = Arc::new(RwLock::new(HashMap::new()));
+    let mut server = Server::new()
+        .bind(aux_sock_path.as_path().to_str().unwrap())
+        .unwrap()
+        .register_service(vservice);
 
-    listener
-        .filter_map(|r| future::ready(r.ok()))
-        .map(server::BaseChannel::with_defaults)
-        .map(|channel| {
-            debug!("Accepted connection");
-            let state_map = state_map.clone();
-            let cmd_tx = cmd_tx.clone();
-            let data_rx = data_rx.clone();
-            let server = ApiServer {
-                state_map,
-                cmd_tx,
-                data_rx,
-            };
-            channel.execute(server.serve()).for_each(spawn)
-        })
-        .buffer_unordered(10)
-        .for_each(|_| async {})
-        .await;
+    server.start().await?;
 
     thread.await??;
 

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (C) 2024 Akira Moroo
 
-use std::path::PathBuf;
-
 use anyhow::Result;
 use clap::Parser;
-use libakari::vm_rpc::VmRpcClient;
-use tarpc::context;
+use containerd_shim::{
+    protos::shim::{shim::ConnectRequest, shim_ttrpc_async::TaskClient},
+    Context,
+};
 
 use super::error::Error;
 
@@ -17,16 +17,12 @@ pub struct Connect {
     port: u32,
 }
 
-pub async fn connect(
-    args: Connect,
-    _root_path: PathBuf,
-    client: &VmRpcClient,
-) -> Result<(), Error> {
-    client
-        .connect(context::current(), args.container_id, args.port)
-        .await
-        .map_err(Error::RpcClient)?
-        .map_err(Error::Api)?;
-
+pub async fn connect(args: Connect, client: &TaskClient) -> Result<(), Error> {
+    let ctx = Context::default();
+    let req = ConnectRequest {
+        id: args.container_id,
+        ..Default::default()
+    };
+    let _ = client.connect(ctx, &req).await.map_err(Error::RpcClient)?;
     Ok(())
 }

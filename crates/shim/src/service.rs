@@ -5,11 +5,11 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use containerd_shim::{
-    publisher::RemotePublisher, spawn, Config, DeleteResponse, Error, ExitSignal, Flags, Shim,
-    StartOpts,
+    protos::shim_async::{Client, TaskClient},
+    publisher::RemotePublisher,
+    spawn, Config, DeleteResponse, Error, ExitSignal, Flags, Shim, StartOpts,
 };
-
-use log::info;
+use libakari::path::{aux_sock_path, root_path};
 
 use crate::task::Task;
 
@@ -29,14 +29,13 @@ impl Shim for Service {
 
     async fn start_shim(&mut self, opts: StartOpts) -> Result<String, Error> {
         // TODO: Check if the VM server is running
+        // TODO: Connect to the VM server and request a connection to the VM agent
         let grouping = opts.id.clone();
         let address = spawn(opts, &grouping, Vec::new()).await?;
-        info!("start shim at {}", address);
         Ok(address)
     }
 
     async fn delete_shim(&mut self) -> Result<DeleteResponse, Error> {
-        info!("delete shim");
         Ok(DeleteResponse::default())
     }
 
@@ -45,7 +44,12 @@ impl Shim for Service {
     }
 
     async fn create_task_service(&self, _publisher: RemotePublisher) -> Task {
-        info!("create task service");
-        Task::new().await
+        // TODO: Get the root path and the auxiliary socket path
+        let root_path = root_path(None).unwrap();
+        let aux_sock_path = aux_sock_path(&root_path, None);
+
+        let client = TaskClient::new(Client::connect(aux_sock_path.to_str().unwrap()).unwrap());
+
+        Task { client }
     }
 }

@@ -1,24 +1,18 @@
 [package]
-name = "containerd-shim-akari-v1"
+name = "containerd-shim-akari-v2"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
+containerd-shim.workspace = true
 log.workspace = true
 oci-spec.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-tarpc.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-
-containerd-shim = { version = "0.7.1", features = ["async"] }
-# containerd-shim = { path = "../../../rust-extensions/crates/shim", features = [
-#     "async",
-# ] }
-# simplelog = "0.12.2"
 
 libakari = { path = "../libakari" }
 vmm = { path = "../vmm" }
