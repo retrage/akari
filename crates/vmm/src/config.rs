@@ -5,20 +5,18 @@ use std::path::Path;
 
 use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
-use icrate::{
-    Foundation::{NSArray, NSData, NSFileHandle, NSString, NSURL},
-    Virtualization::{
-        VZDiskImageStorageDeviceAttachment, VZFileHandleSerialPortAttachment,
-        VZMacAuxiliaryStorage, VZMacGraphicsDeviceConfiguration, VZMacGraphicsDisplayConfiguration,
-        VZMacHardwareModel, VZMacMachineIdentifier, VZMacOSBootLoader, VZMacPlatformConfiguration,
-        VZSharedDirectory, VZSingleDirectoryShare, VZVirtioBlockDeviceConfiguration,
-        VZVirtioConsoleDeviceSerialPortConfiguration, VZVirtioEntropyDeviceConfiguration,
-        VZVirtioFileSystemDeviceConfiguration, VZVirtioSocketDeviceConfiguration,
-        VZVirtioTraditionalMemoryBalloonDeviceConfiguration, VZVirtualMachineConfiguration,
-    },
-};
 use libakari::vm_config::MacosVmConfig;
 use objc2::{rc::Id, ClassType};
+use objc2_foundation::{NSArray, NSData, NSFileHandle, NSString, NSURL};
+use objc2_virtualization::{
+    VZDiskImageStorageDeviceAttachment, VZFileHandleSerialPortAttachment, VZMacAuxiliaryStorage,
+    VZMacGraphicsDeviceConfiguration, VZMacGraphicsDisplayConfiguration, VZMacHardwareModel,
+    VZMacMachineIdentifier, VZMacOSBootLoader, VZMacPlatformConfiguration, VZSharedDirectory,
+    VZSingleDirectoryShare, VZVirtioBlockDeviceConfiguration,
+    VZVirtioConsoleDeviceSerialPortConfiguration, VZVirtioEntropyDeviceConfiguration,
+    VZVirtioFileSystemDeviceConfiguration, VZVirtioSocketDeviceConfiguration,
+    VZVirtioTraditionalMemoryBalloonDeviceConfiguration, VZVirtualMachineConfiguration,
+};
 
 pub struct Config {
     cpu_count: usize,

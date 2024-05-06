@@ -12,13 +12,17 @@ base64 = "0.22.1"
 
 libakari = { path = "../libakari" }
 
-icrate = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization-clean", features = [
-    "AppKit",
-    "AppKit_all",
-    "Foundation",
-    "Foundation_all",
-    "Virtualization",
-    "Virtualization_all",
+block2 = { git = "https://github.com/retrage/objc2", branch = "virtualization-v2" }
+objc2 = { git = "https://github.com/retrage/objc2", branch = "virtualization-v2" }
+objc2-foundation = { git = "https://github.com/retrage/objc2", branch = "virtualization-v2", features = [
+    "block2",
+    "NSArray",
+    "NSData",
+    "NSError",
+    "NSFileHandle",
+    "NSString",
+    "NSURL",
 ] }
-objc2 = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization-clean" }
-block2 = { git = "https://github.com/retrage/objc2", branch = "icrate-virtualization-clean" }
+objc2-virtualization = { git = "https://github.com/retrage/objc2", branch = "virtualization-v2", features = [
+    "all",
+] }

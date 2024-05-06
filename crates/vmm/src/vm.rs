@@ -12,14 +12,12 @@ use std::{
 
 use anyhow::Result;
 use block2::RcBlock;
-use icrate::{
-    Foundation::NSError,
-    Virtualization::{
-        VZSocketDevice, VZVirtioSocketConnection, VZVirtualMachine, VZVirtualMachineConfiguration,
-    },
-};
 use log::{error, info, trace};
 use objc2::{msg_send, msg_send_id, rc::Id, ClassType};
+use objc2_foundation::NSError;
+use objc2_virtualization::{
+    VZSocketDevice, VZVirtioSocketConnection, VZVirtualMachine, VZVirtualMachineConfiguration,
+};
 
 use crate::queue::{Queue, QueueAttribute};
 
