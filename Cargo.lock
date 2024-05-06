@@ -1376,12 +1376,13 @@ dependencies = [
  "anyhow",
  "async-trait",
  "clap",
+ "containerd-shim",
+ "containerd-shim-protos",
  "env_logger",
  "futures",
  "libakari",
  "log",
  "oci-spec",
- "protos",
  "serde",
  "serde_json",
  "thiserror",
@@ -1677,6 +1678,7 @@ dependencies = [
  "objc2-foundation",
  "objc2-virtualization",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

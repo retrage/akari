@@ -18,6 +18,7 @@ edition = "2021"
 anyhow = "1.0.83"
 async-trait = "0.1.80"
 clap = { version = "4.5.4", features = ["derive"] }
+containerd-shim-protos = { version = "0.7.0", features = ["async"] }
 containerd-shim = { version = "0.7.1", features = ["async"] }
 env_logger = "0.11.3"
 futures = "0.3"

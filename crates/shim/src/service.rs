@@ -30,6 +30,7 @@ impl Shim for Service {
     async fn start_shim(&mut self, opts: StartOpts) -> Result<String, Error> {
         // TODO: Check if the VM server is running
         // TODO: Connect to the VM server and request a connection to the VM agent
+        // The agent will create a listener socket for the shim
         let grouping = opts.id.clone();
         let address = spawn(opts, &grouping, Vec::new()).await?;
         Ok(address)

@@ -7,6 +7,8 @@ edition.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 clap.workspace = true
+containerd-shim.workspace = true
+containerd-shim-protos.workspace = true
 env_logger.workspace = true
 futures.workspace = true
 log.workspace = true
@@ -18,5 +20,4 @@ tokio.workspace = true
 ttrpc.workspace = true
 
 libakari = { path = "../libakari" }
-protos = { path = "../protos" }
 vmm = { path = "../vmm" }
