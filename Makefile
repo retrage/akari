@@ -2,12 +2,13 @@
 
 SHELL := zsh
 
+TRIPLE := aarch64-apple-darwin
 BUILD_TYPE := debug
 
 VMM_NAME := server
 ROOT_DIR := $(strip $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST)))))
-VMM_PATH := $(ROOT_DIR)/target/$(BUILD_TYPE)/$(VMM_NAME)
-SHIM_PATH := $(ROOT_DIR)/target/$(BUILD_TYPE)/$(SHIM_NAME)
+BUILD_DIR := $(ROOT_DIR)/target/$(TRIPLE)/$(BUILD_TYPE)
+VMM_PATH := $(BUILD_DIR)/$(VMM_NAME)
 
 ENTITLEMENTS := runtime.entitlements
 ENTITLEMENTS_PATH := $(ROOT_DIR)/$(ENTITLEMENTS)
