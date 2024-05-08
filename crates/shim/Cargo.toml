@@ -9,8 +9,6 @@ async-trait.workspace = true
 containerd-shim.workspace = true
 log.workspace = true
 oci-spec.workspace = true
-serde.workspace = true
-serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 
