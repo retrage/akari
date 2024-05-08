@@ -27,7 +27,9 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install Rust components
-        run: rustup component add rust-src clippy rustfmt
+        run: |
+          rustup target add aarch64-apple-darwin
+          rustup component add rust-src clippy rustfmt
       - name: Build (debug)
         run: cargo build
       - name: Build (release)
