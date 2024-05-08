@@ -17,4 +17,3 @@ tokio.workspace = true
 ttrpc.workspace = true
 
 libakari = { path = "../libakari" }
-protos = { path = "../protos" }

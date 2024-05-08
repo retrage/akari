@@ -3,7 +3,6 @@ members = [
     "crates/agent",
     "crates/client",
     "crates/libakari",
-    "crates/protos",
     "crates/server",
     "crates/shim",
     "crates/vmm",
