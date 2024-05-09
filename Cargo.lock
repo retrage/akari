@@ -147,7 +147,7 @@ checksum = "cf4b9d6a944f767f8e5e0db018570623c85f3d925ac718db4e06d0187adb21c1"
 [[package]]
 name = "block2"
 version = "0.5.0"
-source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#261c7ec0bb800a5444b67ceb4400f4a98bd3844f"
+source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#d62e09f38d3eb3675e0437424a64eb060d46fe75"
 dependencies = [
  "objc2",
 ]
@@ -920,12 +920,12 @@ dependencies = [
 [[package]]
 name = "objc-sys"
 version = "0.3.3"
-source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#261c7ec0bb800a5444b67ceb4400f4a98bd3844f"
+source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#d62e09f38d3eb3675e0437424a64eb060d46fe75"
 
 [[package]]
 name = "objc2"
 version = "0.5.1"
-source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#261c7ec0bb800a5444b67ceb4400f4a98bd3844f"
+source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#d62e09f38d3eb3675e0437424a64eb060d46fe75"
 dependencies = [
  "objc-sys",
  "objc2-encode",
@@ -934,7 +934,7 @@ dependencies = [
 [[package]]
 name = "objc2-app-kit"
 version = "0.2.0"
-source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#261c7ec0bb800a5444b67ceb4400f4a98bd3844f"
+source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#d62e09f38d3eb3675e0437424a64eb060d46fe75"
 dependencies = [
  "block2",
  "objc2",
@@ -946,7 +946,7 @@ dependencies = [
 [[package]]
 name = "objc2-core-data"
 version = "0.2.0"
-source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#261c7ec0bb800a5444b67ceb4400f4a98bd3844f"
+source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#d62e09f38d3eb3675e0437424a64eb060d46fe75"
 dependencies = [
  "block2",
  "objc2",
@@ -956,12 +956,12 @@ dependencies = [
 [[package]]
 name = "objc2-encode"
 version = "4.0.1"
-source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#261c7ec0bb800a5444b67ceb4400f4a98bd3844f"
+source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#d62e09f38d3eb3675e0437424a64eb060d46fe75"
 
 [[package]]
 name = "objc2-foundation"
 version = "0.2.0"
-source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#261c7ec0bb800a5444b67ceb4400f4a98bd3844f"
+source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#d62e09f38d3eb3675e0437424a64eb060d46fe75"
 dependencies = [
  "block2",
  "objc2",
@@ -970,7 +970,7 @@ dependencies = [
 [[package]]
 name = "objc2-quartz-core"
 version = "0.2.0"
-source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#261c7ec0bb800a5444b67ceb4400f4a98bd3844f"
+source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#d62e09f38d3eb3675e0437424a64eb060d46fe75"
 dependencies = [
  "block2",
  "objc2",
@@ -980,7 +980,7 @@ dependencies = [
 [[package]]
 name = "objc2-virtualization"
 version = "0.2.0"
-source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#261c7ec0bb800a5444b67ceb4400f4a98bd3844f"
+source = "git+https://github.com/retrage/objc2?branch=virtualization-v2#d62e09f38d3eb3675e0437424a64eb060d46fe75"
 dependencies = [
  "block2",
  "objc2",
