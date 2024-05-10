@@ -10,6 +10,7 @@ use containerd_shim::{
     spawn, Config, DeleteResponse, Error, ExitSignal, Flags, Shim, StartOpts,
 };
 use libakari::path::{aux_sock_path, root_path};
+use log::debug;
 
 use crate::task::Task;
 
@@ -31,16 +32,20 @@ impl Shim for Service {
         // TODO: Check if the VM server is running
         // TODO: Connect to the VM server and request a connection to the VM agent
         // The agent will create a listener socket for the shim
+        // debug!("Starting the shim");
         let grouping = opts.id.clone();
-        let address = spawn(opts, &grouping, Vec::new()).await?;
+        let _ = spawn(opts, &grouping, Vec::new()).await?;
+        let address = String::from("unix:///Users/akira/.akari/run/aux.sock");
         Ok(address)
     }
 
     async fn delete_shim(&mut self) -> Result<DeleteResponse, Error> {
+        debug!("Deleting the shim");
         Ok(DeleteResponse::default())
     }
 
     async fn wait(&mut self) {
+        debug!("Waiting for the exit signal");
         self.exit.wait().await;
     }
 
@@ -48,8 +53,9 @@ impl Shim for Service {
         // TODO: Get the root path and the auxiliary socket path
         let root_path = root_path(None).unwrap();
         let aux_sock_path = aux_sock_path(&root_path, None);
+        let aux_sock_path = format!("unix://{}", aux_sock_path.to_str().unwrap());
 
-        let client = TaskClient::new(Client::connect(aux_sock_path.to_str().unwrap()).unwrap());
+        let client = TaskClient::new(Client::connect(&aux_sock_path).unwrap());
 
         Task { client }
     }

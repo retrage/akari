@@ -28,7 +28,7 @@ dependencies = [
  "oci-spec",
  "serde",
  "serde_json",
- "vsock 0.5.0",
+ "vsock",
 ]
 
 [[package]]
@@ -279,8 +279,6 @@ dependencies = [
 [[package]]
 name = "containerd-shim"
 version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ecfe3bbd2e126cbd3b37ebc7faadedeeb5a87a389dc1668f1f0f4d246e46769"
 dependencies = [
  "async-trait",
  "cgroups-rs",
@@ -319,14 +317,13 @@ dependencies = [
  "oci-spec",
  "thiserror",
  "tokio",
+ "ttrpc",
  "vmm",
 ]
 
 [[package]]
 name = "containerd-shim-protos"
 version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e4ef8fa542cd6964b2705983d02de4f4bdaaac8d25feabcef5c43a87ac58291"
 dependencies = [
  "async-trait",
  "protobuf 3.4.0",
@@ -795,24 +792,6 @@ checksum = "6c8640c5d730cb13ebd907d8d04b52f55ac9a2eec55b440c8892f40d56c76c1d"
 
 [[package]]
 name = "memoffset"
-version = "0.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5aa361d4faea93603064a027415f07bd8e1d5c88c9fbf68bf56a285428fd79ce"
-dependencies = [
- "autocfg",
-]
-
-[[package]]
-name = "memoffset"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5de893c32cde5f383baa4c04c5d6dbdd735cfd4a794b0debdb2bb1b421da5ff4"
-dependencies = [
- "autocfg",
-]
-
-[[package]]
-name = "memoffset"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
@@ -849,18 +828,6 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 
 [[package]]
 name = "nix"
-version = "0.24.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa52e972a9a719cecb6864fb88568781eb706bac2cd1d4f04a648542dbf78069"
-dependencies = [
- "bitflags 1.3.2",
- "cfg-if 1.0.0",
- "libc",
- "memoffset 0.6.5",
-]
-
-[[package]]
-name = "nix"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f346ff70e7dbfd675fe90590b92d59ef2de15a8779ae305ebcbfd3f0caf59be4"
@@ -869,19 +836,6 @@ dependencies = [
  "bitflags 1.3.2",
  "cfg-if 1.0.0",
  "libc",
-]
-
-[[package]]
-name = "nix"
-version = "0.26.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "598beaf3cc6fdd9a5dfb1630c2800c7acd31df7aaf0f565796fba2b53ca1af1b"
-dependencies = [
- "bitflags 1.3.2",
- "cfg-if 1.0.0",
- "libc",
- "memoffset 0.7.1",
- "pin-utils",
 ]
 
 [[package]]
@@ -905,7 +859,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "cfg_aliases",
  "libc",
- "memoffset 0.9.1",
+ "memoffset",
 ]
 
 [[package]]
@@ -1568,22 +1522,19 @@ dependencies = [
 
 [[package]]
 name = "tokio-vsock"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52a15c15b1bc91f90902347eff163b5b682643aff0c8e972912cca79bd9208dd"
+version = "0.5.0"
+source = "git+https://github.com/retrage/tokio-vsock?branch=macos-support#1107f208900223b57f586b60f4636eafc94f0261"
 dependencies = [
  "bytes",
  "futures",
  "libc",
  "tokio",
- "vsock 0.3.0",
+ "vsock",
 ]
 
 [[package]]
 name = "ttrpc"
 version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55ea338db445bee75c596cf8a478fbfcefad5a943c9e92a7e1c805c65ed39551"
 dependencies = [
  "async-trait",
  "byteorder",
@@ -1591,7 +1542,7 @@ dependencies = [
  "futures",
  "libc",
  "log",
- "nix 0.26.4",
+ "nix 0.28.0",
  "protobuf 3.4.0",
  "protobuf-codegen 3.4.0",
  "thiserror",
@@ -1603,8 +1554,6 @@ dependencies = [
 [[package]]
 name = "ttrpc-codegen"
 version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94d7f7631d7a9ebed715a47cd4cb6072cbc7ae1d4ec01598971bbec0024340c2"
 dependencies = [
  "protobuf 2.28.0",
  "protobuf-codegen 3.4.0",
@@ -1671,16 +1620,6 @@ dependencies = [
  "objc2-virtualization",
  "thiserror",
  "tokio",
-]
-
-[[package]]
-name = "vsock"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c8e1df0bf1e1b28095c24564d1b90acae64ca69b097ed73896e342fa6649c57"
-dependencies = [
- "libc",
- "nix 0.24.3",
 ]
 
 [[package]]

@@ -17,8 +17,8 @@ edition = "2021"
 anyhow = "1.0.83"
 async-trait = "0.1.80"
 clap = { version = "4.5.4", features = ["derive"] }
-containerd-shim-protos = { version = "0.7.0", features = ["async"] }
-containerd-shim = { version = "0.7.1", features = ["async"] }
+# containerd-shim-protos = { version = "0.7.0", features = ["async"] }
+# containerd-shim = { version = "0.7.1", features = ["async"] }
 env_logger = "0.11.3"
 futures = "0.3"
 futures-util = "0.3"
@@ -29,8 +29,15 @@ serde = { version = "1.0.201", features = ["derive"] }
 serde_json = "1.0.117"
 thiserror = "1.0.60"
 tokio = { version = "1.37.0", features = ["macros", "net", "rt-multi-thread"] }
-ttrpc = { version = "0.8.1", features = ["async"] }
-
-# containerd-shim = { path = "../../../rust-extensions/crates/shim", features = [
+ttrpc = { path = "../ttrpc-rust" }
+# ttrpc = { git = "https://github.com/retrage/ttrpc-rust", branch = "macos-support", features = [
 #     "async",
 # ] }
+
+containerd-shim-protos = { path = "../rust-extensions/crates/shim-protos", features = [
+    "async",
+] }
+containerd-shim = { path = "../rust-extensions/crates/shim", features = [
+    "async",
+] }
+containerd-shim-logging = { path = "../rust-extensions/crates/logging" }

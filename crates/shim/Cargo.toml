@@ -7,10 +7,12 @@ edition.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 containerd-shim.workspace = true
+# containerd-shim-logging.workspace = true
 log.workspace = true
 oci-spec.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+ttrpc.workspace = true
 
 libakari = { path = "../libakari" }
 vmm = { path = "../vmm" }

@@ -23,6 +23,7 @@ use std::{
         unix::{fs::FileTypeExt, net::UnixStream},
     },
     path::PathBuf,
+    sync::mpsc,
     sync::Arc,
 };
 
@@ -36,18 +37,18 @@ use containerd_shim::{
     },
     Context, DeleteResponse, Task as ShimTask, TtrpcContext, TtrpcResult,
 };
-use containerd_shim_protos::shim_async::{create_task, TaskClient};
+use containerd_shim_protos::{
+    protobuf::well_known_types::any::Any,
+    shim_async::{create_task, TaskClient},
+};
 use libakari::{
+    agent::{DEFAULT_AGENT_PORT, DEFAULT_MIN_VSOCK_PORT},
     path::{aux_sock_path, root_path},
-    vm_config::{load_vm_config, MacosVmConfig, MacosVmSerial},
+    vm_config::{load_vm_config, MacosVmConfig, MacosVmSerial, MacosVmSharedDirectory},
     vm_rpc::{self, VmCommand},
 };
 use log::{debug, error, info};
-use tokio::{
-    runtime::Runtime,
-    sync::{mpsc, RwLock},
-    task::JoinHandle,
-};
+use tokio::{sync::RwLock, task::JoinHandle, time::sleep};
 use ttrpc::asynchronous::{Client, Server};
 
 #[derive(clap::Parser)]
@@ -67,7 +68,6 @@ struct Opts {
 struct ContainerState {
     bundle: PathBuf,
     vsock_port: u32,
-    vsock_path: PathBuf,
 }
 
 type ContainerStateMap = HashMap<String, ContainerState>;
@@ -86,9 +86,11 @@ impl ShimTask for ContainerService {
         _ctx: &TtrpcContext,
         req: ConnectRequest,
     ) -> TtrpcResult<ConnectResponse> {
+        debug!("Connect request: {:?}", req);
         let mut state_map = self.state_map.write().await;
         let state = state_map.get_mut(req.id()).unwrap(); // TODO
-        let client = TaskClient::new(Client::connect(state.vsock_path.to_str().unwrap()).unwrap());
+        let client =
+            TaskClient::new(Client::connect(&self.vsock_path_str(state.vsock_port)).unwrap());
         let res = client.connect(Context::default(), &req).await?;
         Ok(res)
     }
@@ -98,6 +100,7 @@ impl ShimTask for ContainerService {
         _ctx: &TtrpcContext,
         req: CreateTaskRequest,
     ) -> TtrpcResult<CreateTaskResponse> {
+        debug!("Create request: {:?}", req);
         let mut state_map = self.state_map.write().await;
 
         if state_map.contains_key(req.id()) {
@@ -109,41 +112,31 @@ impl ShimTask for ContainerService {
 
         let bundle = PathBuf::from(req.bundle());
 
-        // Create a unique vsock port for the container.
-        // Find the smallest used vsock port
-        const DEFAULT_MIN_PORT: u32 = 1234;
-        let mut vsock_port = DEFAULT_MIN_PORT - 1;
-        state_map.values().for_each(|state| {
-            vsock_port = std::cmp::max(vsock_port, state.vsock_port);
-        });
-        vsock_port += 1;
+        let vsock_port = self.allocate_vsock_port().await;
+        let mut req = req.clone();
+        // req.set_options()
+        let options = Any {
+            type_url: "akari.io/vsock_port".to_string(),
+            value: vsock_port.to_le_bytes().to_vec(),
+            ..Default::default()
+        };
+        req.set_options(options);
 
-        // TODO: Use root_path
-        let vsock_path = PathBuf::from(format!("/tmp/akari_vsock_{}", vsock_port));
-
-        self.cmd_tx
-            .send(VmCommand::Connect(vsock_port, vsock_path.clone()))
-            .await
-            .unwrap();
-
-        let client =
-            TaskClient::new(Client::connect(vsock_path.clone().to_str().unwrap()).unwrap());
+        let client = self.vsock_connect_client(DEFAULT_AGENT_PORT).await.unwrap();
         let res = client.create(Context::default(), &req).await?;
 
-        let state = ContainerState {
-            bundle,
-            vsock_port,
-            vsock_path,
-        };
+        let state = ContainerState { bundle, vsock_port };
         state_map.insert(req.id().to_string(), state);
 
         Ok(res)
     }
 
     async fn delete(&self, _ctx: &TtrpcContext, req: DeleteRequest) -> TtrpcResult<DeleteResponse> {
+        debug!("Delete request: {:?}", req);
         let mut state_map = self.state_map.write().await;
         let state = state_map.get_mut(req.id()).unwrap(); // TODO
-        let client = TaskClient::new(Client::connect(state.vsock_path.to_str().unwrap()).unwrap());
+        let client =
+            TaskClient::new(Client::connect(&self.vsock_path_str(state.vsock_port)).unwrap());
         let res = client.delete(Context::default(), &req).await?;
         match state.bundle.try_exists() {
             Ok(exist) => {
@@ -172,36 +165,89 @@ impl ShimTask for ContainerService {
     }
 
     async fn kill(&self, _ctx: &TtrpcContext, req: KillRequest) -> TtrpcResult<Empty> {
+        debug!("Kill request: {:?}", req);
         let mut state_map = self.state_map.write().await;
         let state = state_map.get_mut(req.id()).unwrap(); // TODO
-        let client = TaskClient::new(Client::connect(state.vsock_path.to_str().unwrap()).unwrap());
+        let client =
+            TaskClient::new(Client::connect(&self.vsock_path_str(state.vsock_port)).unwrap());
         let res = client.kill(Context::default(), &req).await?;
         Ok(res)
     }
 
     async fn start(&self, _ctx: &TtrpcContext, req: StartRequest) -> TtrpcResult<StartResponse> {
+        debug!("Start request: {:?}", req);
         let mut state_map = self.state_map.write().await;
         let state = state_map.get_mut(req.id()).unwrap(); // TODO
-        let client = TaskClient::new(Client::connect(state.vsock_path.to_str().unwrap()).unwrap());
+        let client =
+            TaskClient::new(Client::connect(&self.vsock_path_str(state.vsock_port)).unwrap());
         let res = client.start(Context::default(), &req).await?;
         Ok(res)
     }
 
     async fn state(&self, _ctx: &TtrpcContext, req: StateRequest) -> TtrpcResult<StateResponse> {
+        debug!("State request: {:?}", req);
         let mut state_map = self.state_map.write().await;
         let state = state_map.get_mut(req.id()).unwrap(); // TODO
-        let client = TaskClient::new(Client::connect(state.vsock_path.to_str().unwrap()).unwrap());
+        let client =
+            TaskClient::new(Client::connect(&self.vsock_path_str(state.vsock_port)).unwrap());
         let res = client.state(Context::default(), &req).await?;
         Ok(res)
     }
 }
 
-async fn handle_cmd(vm: &mut vmm::vm::Vm, cmd_rx: &mut mpsc::Receiver<VmCommand>) -> Result<()> {
+impl ContainerService {
+    fn vsock_path_path_buf(&self, vsock_port: u32) -> PathBuf {
+        // TODO: Use root_path
+        PathBuf::from(format!("/tmp/akari_vsock_{}", vsock_port))
+    }
+
+    fn vsock_path_str(&self, vsock_port: u32) -> String {
+        format!(
+            "unix://{}",
+            self.vsock_path_path_buf(vsock_port).to_str().unwrap()
+        )
+    }
+
+    async fn allocate_vsock_port(&self) -> u32 {
+        let state_map = self.state_map.read().await;
+        let mut vsock_port = DEFAULT_MIN_VSOCK_PORT;
+        state_map.values().for_each(|state| {
+            vsock_port = std::cmp::max(vsock_port, state.vsock_port);
+        });
+        vsock_port + 1
+    }
+
+    async fn vsock_connect_client(&self, vsock_port: u32) -> Result<TaskClient> {
+        let vsock_path = self.vsock_path_path_buf(vsock_port);
+        match vsock_path.try_exists() {
+            Ok(exist) => {
+                if exist {
+                    std::fs::remove_file(&vsock_path).unwrap(); // TODO
+                }
+            }
+            Err(e) => {
+                return Err(anyhow::anyhow!(format!(
+                    "Failed to check if the vsock path exists: {}",
+                    e
+                )));
+            }
+        }
+
+        self.cmd_tx
+            .send(VmCommand::Connect(vsock_port, vsock_path.clone()))
+            .unwrap();
+
+        sleep(std::time::Duration::from_secs(5)).await;
+
+        let vsock_path = self.vsock_path_str(vsock_port);
+        let client = TaskClient::new(Client::connect(&vsock_path).unwrap());
+        Ok(client)
+    }
+}
+
+fn handle_cmd(vm: &mut vmm::vm::Vm, cmd_rx: &mut mpsc::Receiver<VmCommand>) -> Result<()> {
     debug!("Waiting for command...");
-    let cmd = cmd_rx
-        .recv()
-        .await
-        .ok_or_else(|| anyhow::anyhow!("Command channel closed"))?;
+    let cmd = cmd_rx.recv()?;
     match cmd {
         vm_rpc::VmCommand::Start => vm.start()?,
         vm_rpc::VmCommand::Stop => vm.kill()?,
@@ -224,15 +270,12 @@ fn vm_thread(vm_config: MacosVmConfig, cmd_rx: &mut mpsc::Receiver<VmCommand>) -
         .build();
     let mut vm = vmm::vm::Vm::new(config)?;
 
-    let rt = Runtime::new().expect("Failed to create a runtime.");
-    rt.block_on(async {
-        loop {
-            if let Err(e) = handle_cmd(&mut vm, cmd_rx).await {
-                error!("Failed to handle command: {}", e);
-                break;
-            }
+    loop {
+        if let Err(e) = handle_cmd(&mut vm, cmd_rx) {
+            error!("Failed to handle command: {}", e);
+            break;
         }
-    });
+    }
 
     Ok(())
 }
@@ -243,7 +286,7 @@ async fn create_vm(
     JoinHandle<Result<(), anyhow::Error>>,
     mpsc::Sender<VmCommand>,
 )> {
-    let (cmd_tx, mut cmd_rx) = mpsc::channel::<vm_rpc::VmCommand>(8);
+    let (cmd_tx, mut cmd_rx) = mpsc::channel::<vm_rpc::VmCommand>();
 
     let thread = tokio::spawn(async move { vm_thread(vm_config, &mut cmd_rx) });
 
@@ -264,6 +307,7 @@ async fn main() -> Result<()> {
             if exist {
                 let metadata = std::fs::metadata(&aux_sock_path)?;
                 if metadata.file_type().is_socket() {
+                    info!("Removing existing aux socket path: {:?}", aux_sock_path);
                     std::fs::remove_file(&aux_sock_path)?;
                 } else {
                     anyhow::bail!("The aux socket path exists and is not a socket");
@@ -275,35 +319,73 @@ async fn main() -> Result<()> {
         }
     }
 
-    let console_path = opts
-        .console_sock
-        .unwrap_or_else(|| root_path.join("console.sock"));
-
-    let vm_config_path = root_path.join("vm.json");
+    let vm_config_path = root_path.join("vm.json.base");
     let mut vm_config = load_vm_config(&vm_config_path)?;
-    vm_config.serial = Some(MacosVmSerial { path: console_path });
+
+    let shared_dir = root_path.join("shared");
+    vm_config.shares = Some(vec![MacosVmSharedDirectory {
+        path: shared_dir,
+        automount: true,
+        read_only: false,
+    }]);
+
+    let console_path = opts.console_sock;
+    vm_config.serial = console_path.map(|path| MacosVmSerial { path });
 
     info!("Creating VM from config file: {:?}", vm_config_path);
     let (thread, cmd_tx) = create_vm(vm_config).await?;
 
     info!("Starting VM");
-    cmd_tx.send(vm_rpc::VmCommand::Start).await?;
+    cmd_tx.send(vm_rpc::VmCommand::Start)?;
+
+    let aux_sock_path = format!("unix://{}", aux_sock_path.to_str().unwrap());
+    let container_service = Box::new(ContainerService {
+        state_map: Arc::new(RwLock::new(HashMap::new())),
+        cmd_tx: cmd_tx.clone(),
+    }) as Box<dyn ShimTask + Sync + Send>;
+    let container_service = Arc::new(container_service);
+    let container_task = create_task(container_service);
+
+    loop {
+        sleep(std::time::Duration::from_secs(30)).await;
+        let agent_vsock_path = PathBuf::from(format!("/tmp/akari_vsock_{}", DEFAULT_AGENT_PORT));
+        match agent_vsock_path.try_exists() {
+            Ok(exist) => {
+                if exist {
+                    std::fs::remove_file(&agent_vsock_path).unwrap(); // TODO
+                }
+            }
+            Err(e) => {
+                return Err(anyhow::anyhow!(format!(
+                    "Failed to check if the vsock path exists: {}",
+                    e
+                )));
+            }
+        }
+        if cmd_tx
+            .send(vm_rpc::VmCommand::Connect(
+                DEFAULT_AGENT_PORT,
+                agent_vsock_path.clone(),
+            ))
+            .is_ok()
+        {
+            info!("Connected to the agent");
+            break;
+        }
+        sleep(std::time::Duration::from_secs(10)).await;
+        info!("Retrying to connect to the agent");
+    }
 
     info!("Listening on: {:?}", aux_sock_path);
-    let v = Box::new(ContainerService {
-        state_map: Arc::new(RwLock::new(HashMap::new())),
-        cmd_tx,
-    }) as Box<dyn ShimTask + Sync + Send>;
-    let v = Arc::new(v);
-    let vservice = create_task(v);
-
     let mut server = Server::new()
-        .bind(aux_sock_path.as_path().to_str().unwrap())
+        .bind(&aux_sock_path)
         .unwrap()
-        .register_service(vservice);
+        .register_service(container_task);
 
+    info!("Starting the server");
     server.start().await?;
 
+    info!("Waiting for the VM thread to finish");
     thread.await??;
 
     Ok(())
