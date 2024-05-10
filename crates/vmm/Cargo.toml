@@ -13,9 +13,9 @@ base64 = "0.22.1"
 
 libakari = { path = "../libakari" }
 
-block2 = { git = "https://github.com/retrage/objc2", branch = "virtualization-v2" }
-objc2 = { git = "https://github.com/retrage/objc2", branch = "virtualization-v2" }
-objc2-foundation = { git = "https://github.com/retrage/objc2", branch = "virtualization-v2", features = [
+block2 = { git = "https://github.com/madsmtm/objc2" }
+objc2 = { git = "https://github.com/madsmtm/objc2" }
+objc2-foundation = { git = "https://github.com/madsmtm/objc2", features = [
     "block2",
     "NSArray",
     "NSData",
@@ -24,6 +24,6 @@ objc2-foundation = { git = "https://github.com/retrage/objc2", branch = "virtual
     "NSString",
     "NSURL",
 ] }
-objc2-virtualization = { git = "https://github.com/retrage/objc2", branch = "virtualization-v2", features = [
+objc2-virtualization = { git = "https://github.com/madsmtm/objc2", features = [
     "all",
 ] }
