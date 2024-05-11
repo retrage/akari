@@ -132,6 +132,7 @@ impl Vm {
     }
 
     pub fn connect(&mut self, port: u32, client_path: &Path) -> Result<(), Error> {
+        info!("Connecting to VM: {:?} at port {}", client_path, port);
         let listener = UnixListener::bind(client_path)?;
         let listener = Rc::new(tokio::sync::RwLock::new(listener));
 
@@ -139,8 +140,8 @@ impl Vm {
         let vm = self.vm.clone();
         let block = RcBlock::new(move || {
             let tx = tx.clone();
-            let err_tx = tx.clone();
             let listener = listener.clone();
+            let err_tx = tx.clone();
             let completion_handler = RcBlock::new(
                 move |connection: *mut VZVirtioSocketConnection, error: *mut NSError| {
                     info!("Connected to VM: {:?}", connection);

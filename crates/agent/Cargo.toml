@@ -5,12 +5,18 @@ edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+async-trait.workspace = true
+containerd-shim.workspace = true
+containerd-shim-protos.workspace = true
 env_logger.workspace = true
 log.workspace = true
 oci-spec.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+ttrpc.workspace = true
 
-vsock = { git = "https://github.com/rust-vsock/vsock-rs", rev = "2223f5a" }
+tokio-vsock = { git = "https://github.com/retrage/tokio-vsock", branch = "macos-support" }
 
 libakari = { path = "../libakari" }
