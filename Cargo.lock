@@ -148,7 +148,7 @@ checksum = "cf4b9d6a944f767f8e5e0db018570623c85f3d925ac718db4e06d0187adb21c1"
 [[package]]
 name = "block2"
 version = "0.5.0"
-source = "git+https://github.com/madsmtm/objc2#1c787622d9f871f976415f94ef9575ebf17784e8"
+source = "git+https://github.com/madsmtm/objc2#06d3b2a610811a3c84b70037f7cce6bb779c1df8"
 dependencies = [
  "objc2",
 ]
@@ -927,12 +927,12 @@ dependencies = [
 [[package]]
 name = "objc-sys"
 version = "0.3.3"
-source = "git+https://github.com/madsmtm/objc2#1c787622d9f871f976415f94ef9575ebf17784e8"
+source = "git+https://github.com/madsmtm/objc2#06d3b2a610811a3c84b70037f7cce6bb779c1df8"
 
 [[package]]
 name = "objc2"
 version = "0.5.1"
-source = "git+https://github.com/madsmtm/objc2#1c787622d9f871f976415f94ef9575ebf17784e8"
+source = "git+https://github.com/madsmtm/objc2#06d3b2a610811a3c84b70037f7cce6bb779c1df8"
 dependencies = [
  "objc-sys",
  "objc2-encode",
@@ -941,7 +941,7 @@ dependencies = [
 [[package]]
 name = "objc2-app-kit"
 version = "0.2.0"
-source = "git+https://github.com/madsmtm/objc2#1c787622d9f871f976415f94ef9575ebf17784e8"
+source = "git+https://github.com/madsmtm/objc2#06d3b2a610811a3c84b70037f7cce6bb779c1df8"
 dependencies = [
  "block2",
  "objc2",
@@ -953,7 +953,7 @@ dependencies = [
 [[package]]
 name = "objc2-core-data"
 version = "0.2.0"
-source = "git+https://github.com/madsmtm/objc2#1c787622d9f871f976415f94ef9575ebf17784e8"
+source = "git+https://github.com/madsmtm/objc2#06d3b2a610811a3c84b70037f7cce6bb779c1df8"
 dependencies = [
  "block2",
  "objc2",
@@ -963,12 +963,12 @@ dependencies = [
 [[package]]
 name = "objc2-encode"
 version = "4.0.1"
-source = "git+https://github.com/madsmtm/objc2#1c787622d9f871f976415f94ef9575ebf17784e8"
+source = "git+https://github.com/madsmtm/objc2#06d3b2a610811a3c84b70037f7cce6bb779c1df8"
 
 [[package]]
 name = "objc2-foundation"
 version = "0.2.0"
-source = "git+https://github.com/madsmtm/objc2#1c787622d9f871f976415f94ef9575ebf17784e8"
+source = "git+https://github.com/madsmtm/objc2#06d3b2a610811a3c84b70037f7cce6bb779c1df8"
 dependencies = [
  "block2",
  "objc2",
@@ -977,7 +977,7 @@ dependencies = [
 [[package]]
 name = "objc2-quartz-core"
 version = "0.2.0"
-source = "git+https://github.com/madsmtm/objc2#1c787622d9f871f976415f94ef9575ebf17784e8"
+source = "git+https://github.com/madsmtm/objc2#06d3b2a610811a3c84b70037f7cce6bb779c1df8"
 dependencies = [
  "block2",
  "objc2",
@@ -987,7 +987,7 @@ dependencies = [
 [[package]]
 name = "objc2-virtualization"
 version = "0.2.0"
-source = "git+https://github.com/madsmtm/objc2#1c787622d9f871f976415f94ef9575ebf17784e8"
+source = "git+https://github.com/madsmtm/objc2#06d3b2a610811a3c84b70037f7cce6bb779c1df8"
 dependencies = [
  "block2",
  "objc2",
