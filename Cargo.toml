@@ -22,7 +22,7 @@ containerd-shim = { version = "0.7.1", features = ["async"] }
 env_logger = "0.11.3"
 futures = "0.3"
 futures-util = "0.3"
-liboci-cli = "0.3.2"
+liboci-cli = "0.3.3"
 log = "0.4.21"
 oci-spec = "0.6.5"
 serde = { version = "1.0.201", features = ["derive"] }
