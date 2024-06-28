@@ -101,7 +101,12 @@ where
 
     let closure = Box::new(closure);
     let func: extern "C" fn(Box<F>) = work_execute_closure::<F>;
-    unsafe { (mem::transmute(closure), mem::transmute(func)) }
+    unsafe {
+        (
+            mem::transmute::<Box<F>, *mut c_void>(closure),
+            mem::transmute::<extern "C" fn(Box<F>), dispatch_function_t>(func),
+        )
+    }
 }
 
 fn context_and_sync_function<F>(closure: &mut Option<F>) -> (*mut c_void, dispatch_function_t)
@@ -119,7 +124,12 @@ where
 
     let context: *mut Option<F> = closure;
     let func: extern "C" fn(&mut Option<F>) = work_read_closure::<F>;
-    unsafe { (context as *mut c_void, mem::transmute(func)) }
+    unsafe {
+        (
+            context as *mut c_void,
+            mem::transmute::<extern "C" fn(&mut Option<F>), dispatch_function_t>(func),
+        )
+    }
 }
 
 /// The type of a dispatch queue.
