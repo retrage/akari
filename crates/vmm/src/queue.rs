@@ -75,6 +75,7 @@ pub static DISPATCH_QUEUE_CONCURRENT: &dispatch_object_s =
     unsafe { &_dispatch_queue_attr_concurrent };
 
 /// An error indicating a wait timed out.
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug)]
 pub struct WaitTimeout {
     duration: Duration,
