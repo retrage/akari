@@ -28,7 +28,7 @@ oci-spec = "0.6.7"
 serde = { version = "1.0.204", features = ["derive"] }
 serde_json = "1.0.120"
 thiserror = "1.0.63"
-tokio = { version = "1.38.0", features = ["macros", "net", "rt-multi-thread"] }
+tokio = { version = "1.39.2", features = ["macros", "net", "rt-multi-thread"] }
 ttrpc = { version = "0.8.1", features = ["async"] }
 
 # containerd-shim = { path = "../../../rust-extensions/crates/shim", features = [
