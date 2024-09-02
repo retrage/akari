@@ -15,7 +15,7 @@ edition = "2021"
 
 [workspace.dependencies]
 anyhow = "1.0.86"
-async-trait = "0.1.81"
+async-trait = "0.1.82"
 clap = { version = "4.5.16", features = ["derive"] }
 containerd-shim-protos = { version = "0.7.0", features = ["async"] }
 containerd-shim = { version = "0.7.1", features = ["async"] }
