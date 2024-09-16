@@ -6,7 +6,7 @@ use std::path::Path;
 use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 use libakari::vm_config::MacosVmConfig;
-use objc2::{rc::Id, ClassType};
+use objc2::{rc::Id, AllocAnyThread, ClassType};
 use objc2_foundation::{NSArray, NSData, NSFileHandle, NSString, NSURL};
 use objc2_virtualization::{
     VZDiskImageStorageDeviceAttachment, VZFileHandleSerialPortAttachment, VZMacAuxiliaryStorage,
