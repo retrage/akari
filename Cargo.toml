@@ -29,7 +29,7 @@ serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"
 thiserror = "1.0.64"
 tokio = { version = "1.40.0", features = ["macros", "net", "rt-multi-thread"] }
-ttrpc = { version = "0.8.1", features = ["async"] }
+ttrpc = { version = "0.8.2", features = ["async"] }
 
 # containerd-shim = { path = "../../../rust-extensions/crates/shim", features = [
 #     "async",
