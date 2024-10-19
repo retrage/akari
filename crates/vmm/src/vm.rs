@@ -12,7 +12,7 @@ use std::{
 use anyhow::Result;
 use block2::RcBlock;
 use log::info;
-use objc2::{msg_send, msg_send_id, rc::Id, AllocAnyThread, ClassType};
+use objc2::{msg_send, msg_send_id, rc::Id, rc::Retained, AllocAnyThread, ClassType};
 use objc2_foundation::NSError;
 use objc2_virtualization::{
     VZSocketDevice, VZVirtioSocketConnection, VZVirtualMachine, VZVirtualMachineConfiguration,
@@ -53,7 +53,7 @@ impl Vm {
         }
         let queue = Queue::create("com.akari.vm.queue", QueueAttribute::Serial);
         let vm: Rc<RwLock<Id<VZVirtualMachine>>> = Rc::new(RwLock::new(unsafe {
-            msg_send_id![VZVirtualMachine::alloc(), initWithConfiguration: config.as_ref(), queue: queue.ptr]
+            msg_send_id![VZVirtualMachine::alloc(), initWithConfiguration: <Retained<VZVirtualMachineConfiguration> as AsRef<VZVirtualMachineConfiguration>>::as_ref(&config), queue: queue.ptr]
         }));
         let vm = Vm { vm, queue };
         Ok(vm)

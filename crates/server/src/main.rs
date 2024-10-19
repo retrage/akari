@@ -294,8 +294,7 @@ async fn main() -> Result<()> {
         state_map: Arc::new(RwLock::new(HashMap::new())),
         cmd_tx,
     }) as Box<dyn ShimTask + Sync + Send>;
-    let v = Arc::new(v);
-    let vservice = create_task(v);
+    let vservice = create_task(v.into());
 
     let mut server = Server::new()
         .bind(aux_sock_path.as_path().to_str().unwrap())
