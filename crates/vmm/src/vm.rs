@@ -12,7 +12,7 @@ use std::{
 use anyhow::Result;
 use block2::RcBlock;
 use log::info;
-use objc2::{msg_send, msg_send_id, rc::Id, rc::Retained, AllocAnyThread, ClassType};
+use objc2::{msg_send, msg_send_id, rc::Retained, AllocAnyThread, ClassType};
 use objc2_foundation::NSError;
 use objc2_virtualization::{
     VZSocketDevice, VZVirtioSocketConnection, VZVirtualMachine, VZVirtualMachineConfiguration,
@@ -24,7 +24,7 @@ use crate::queue::{Queue, QueueAttribute};
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Invalid configuration: {0}")]
-    InvalidConfiguration(Id<NSError>),
+    InvalidConfiguration(Retained<NSError>),
     #[error("Failed to start VM")]
     FailedToStartVm,
     #[error("Failed to stop VM")]
@@ -40,19 +40,19 @@ pub enum Error {
 }
 
 pub struct Vm {
-    vm: Rc<RwLock<Id<VZVirtualMachine>>>,
+    vm: Rc<RwLock<Retained<VZVirtualMachine>>>,
     queue: Queue,
 }
 
 impl Vm {
-    pub fn new(config: Id<VZVirtualMachineConfiguration>) -> Result<Self, Error> {
+    pub fn new(config: Retained<VZVirtualMachineConfiguration>) -> Result<Self, Error> {
         unsafe {
             config
                 .validateWithError()
                 .map_err(Error::InvalidConfiguration)?;
         }
         let queue = Queue::create("com.akari.vm.queue", QueueAttribute::Serial);
-        let vm: Rc<RwLock<Id<VZVirtualMachine>>> = Rc::new(RwLock::new(unsafe {
+        let vm: Rc<RwLock<Retained<VZVirtualMachine>>> = Rc::new(RwLock::new(unsafe {
             msg_send_id![VZVirtualMachine::alloc(), initWithConfiguration: <Retained<VZVirtualMachineConfiguration> as AsRef<VZVirtualMachineConfiguration>>::as_ref(&config), queue: queue.ptr]
         }));
         let vm = Vm { vm, queue };
@@ -124,7 +124,7 @@ impl Vm {
     }
 
     unsafe fn do_connect(
-        socket: Id<VZSocketDevice>,
+        socket: Retained<VZSocketDevice>,
         port: u32,
         completion_handler: RcBlock<dyn Fn(*mut VZVirtioSocketConnection, *mut NSError)>,
     ) {

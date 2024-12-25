@@ -6,7 +6,7 @@ use std::path::Path;
 use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 use libakari::vm_config::MacosVmConfig;
-use objc2::{rc::Id, AllocAnyThread, ClassType};
+use objc2::{rc::Retained, AllocAnyThread, ClassType};
 use objc2_foundation::{NSArray, NSData, NSFileHandle, NSString, NSURL};
 use objc2_virtualization::{
     VZDiskImageStorageDeviceAttachment, VZFileHandleSerialPortAttachment, VZMacAuxiliaryStorage,
@@ -21,14 +21,14 @@ use objc2_virtualization::{
 pub struct Config {
     cpu_count: usize,
     ram_size: u64,
-    platform: Id<VZMacPlatformConfiguration>,
-    storages: Vec<Id<VZVirtioBlockDeviceConfiguration>>,
-    consoles: Vec<Id<VZVirtioConsoleDeviceSerialPortConfiguration>>,
-    shared_dirs: Vec<Id<VZVirtioFileSystemDeviceConfiguration>>,
-    graphics: Option<Id<VZMacGraphicsDeviceConfiguration>>,
-    socket: Option<Id<VZVirtioSocketDeviceConfiguration>>,
-    entropy: Option<Id<VZVirtioEntropyDeviceConfiguration>>,
-    memory_ballon: Option<Id<VZVirtioTraditionalMemoryBalloonDeviceConfiguration>>,
+    platform: Retained<VZMacPlatformConfiguration>,
+    storages: Vec<Retained<VZVirtioBlockDeviceConfiguration>>,
+    consoles: Vec<Retained<VZVirtioConsoleDeviceSerialPortConfiguration>>,
+    shared_dirs: Vec<Retained<VZVirtioFileSystemDeviceConfiguration>>,
+    graphics: Option<Retained<VZMacGraphicsDeviceConfiguration>>,
+    socket: Option<Retained<VZVirtioSocketDeviceConfiguration>>,
+    entropy: Option<Retained<VZVirtioEntropyDeviceConfiguration>>,
+    memory_ballon: Option<Retained<VZVirtioTraditionalMemoryBalloonDeviceConfiguration>>,
 }
 
 impl Config {
@@ -86,7 +86,7 @@ impl Config {
         Ok(config)
     }
 
-    pub fn build(&mut self) -> Id<VZVirtualMachineConfiguration> {
+    pub fn build(&mut self) -> Retained<VZVirtualMachineConfiguration> {
         let boot_loader = unsafe { VZMacOSBootLoader::new() };
 
         let config = unsafe {
@@ -295,7 +295,7 @@ impl Config {
         Ok(self)
     }
 
-    fn path_to_nsstring(path: &Path) -> Result<Id<NSString>> {
+    fn path_to_nsstring(path: &Path) -> Result<Retained<NSString>> {
         let path = path.canonicalize().map_err(|e| anyhow::anyhow!(e))?;
         let path = path
             .to_str()
@@ -303,7 +303,7 @@ impl Config {
         Ok(NSString::from_str(path))
     }
 
-    fn path_to_nsurl(path: &Path) -> Result<Id<NSURL>> {
+    fn path_to_nsurl(path: &Path) -> Result<Retained<NSURL>> {
         let path = Self::path_to_nsstring(path)?;
         Ok(unsafe { NSURL::fileURLWithPath(&path) })
     }
