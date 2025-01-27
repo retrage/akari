@@ -673,11 +673,11 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "home"
-version = "0.5.11"
+version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "589533453244b0995c858700322199b2becb13b627df2851f64a2775d024abcf"
+checksum = "e3d1354bf6b7235cb4a0576c2619fd4ed18183f689b12b006a0ee7329eeff9a5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1744,14 +1744,15 @@ dependencies = [
 
 [[package]]
 name = "ttrpc"
-version = "0.8.2"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e376927d4422245ae3e0a0d7df0e805f99652536999b5c671144de9fe4120d8c"
+checksum = "2c580c498a547b4c083ec758be543e11a0772e03013aef4cdb1fbe77c8b62cae"
 dependencies = [
  "async-trait",
  "byteorder",
  "crossbeam",
  "futures",
+ "home",
  "libc",
  "log",
  "nix 0.26.4",
